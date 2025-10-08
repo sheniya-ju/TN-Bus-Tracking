@@ -1,0 +1,6 @@
+node_modules/
+.env
+.DS_Store
+.vscode/
+firebase-debug.log
+public/firebase-config.*.json

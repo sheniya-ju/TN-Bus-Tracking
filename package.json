@@ -1,0 +1,12 @@
+{
+  "name": "tn-bus-tracking",
+  "version": "1.0.0",
+  "description": "TN Govt Bus Tracking website (Firebase + Leaflet)",
+  "scripts": {
+    "start": "live-server public --port=5500",
+    "deploy": "firebase deploy --only hosting"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}

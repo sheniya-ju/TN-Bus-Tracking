@@ -1,0 +1,144 @@
+/* src/css/admin.css */
+
+/* Global theme */
+:root {
+  --bg: #f5fff7;             /* light greenish background */
+  --card: #ffffff;           /* white card */
+  --accent: #2ecc71;         /* green accent */
+  --accent-dark: #27ae60;    /* darker green */
+  --text: #1a1a1a;           /* dark text */
+  --muted: #666;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Top bar */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  border-bottom: 3px solid var(--accent-dark);
+}
+
+.topbar .logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar .logo img {
+  height: 36px;
+  width: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.topbar .right {
+  display: flex;
+  gap: 12px;
+}
+
+/* Layout */
+.layout {
+  display: flex;
+  gap: 18px;
+  padding: 20px;
+  height: calc(100vh - 68px);
+}
+
+/* Side panel */
+.panel {
+  width: 340px;
+  background: var(--card);
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  overflow-y: auto;
+}
+
+.panel h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: var(--accent-dark);
+}
+
+/* Map */
+.mapwrap {
+  flex: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Inputs */
+input {
+  padding: 10px;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+/* Buttons */
+button {
+  display: inline-block;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  transition: background 0.2s ease-in-out;
+}
+
+button:hover {
+  background: var(--accent-dark);
+}
+
+button.small.ghost {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 13px;
+  padding: 6px 12px;
+}
+
+button.small.ghost:hover {
+  background: var(--accent);
+  color: white;
+}
+
+/* Complaints list */
+.list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f9fdf9;
+  border: 1px solid #e0f2e9;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.list li strong {
+  color: var(--accent-dark);
+}
+
+/* Messages */
+#assignMsg {
+  margin: 6px 0;
+  font-size: 13px;
+  color: var(--muted);
+}

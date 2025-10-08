@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>TN Bus Tracking — User Panel</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f8fff8;
+      color: #042;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      background: #024d2f;
+      color: #fff;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo img {
+      height: 40px;
+      border-radius: 6px;
+      background: #fff;
+      padding: 2px;
+    }
+    .logout {
+      background: #ff4d4f;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    #map {
+      width: 100%;
+      height: calc(100vh - 250px); /* leave space for complaint form */
+    }
+    .complaint-section {
+      padding: 15px;
+      background: #e6f4ea;
+      margin: 15px;
+      border-radius: 10px;
+      max-width: 500px;
+    }
+    .complaint-section h3 {
+      margin-top: 0;
+    }
+    .complaint-section input,
+    .complaint-section textarea {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    .complaint-section button {
+      padding: 10px 20px;
+      border-radius: 6px;
+      border: none;
+      background: #28a745;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .complaint-section button:hover {
+      background: #218838;
+    }
+    .complaint-msg {
+      margin-top: 8px;
+      font-weight: bold;
+    }
+    
+
+  </style>
+  <link rel="stylesheet" href="../common.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">
+      <img src="../image.jpeg" alt="TN Govt Transport Logo"/>
+      TN Govt – User Panel
+    </div>
+    <button id="btnLogout" class="logout">Logout</button>
+  </header>
+
+  <div id="map"></div>
+
+  <!-- Complaint Form -->
+  <div class="complaint-section">
+    <h3>Raise a Complaint</h3>
+    <input id="complaintBusId" placeholder="Bus ID e.g. BUS101" />
+    <textarea id="complaintMessage" placeholder="Your complaint..." rows="3"></textarea>
+    <button id="btnComplaint">Submit Complaint</button>
+    <p id="complaintMsg" class="complaint-msg"></p>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // Logout
+    const logoutBtn = document.getElementById("btnLogout");
+    logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem("userEmail");
+      localStorage.removeItem("userRole");
+      localStorage.removeItem("userName");
+      window.location.href = "login.html";
+    });
+
+    // Initialize map
+    const map = L.map('map').setView([11.1271, 78.6569], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(map);
+
+    const busMarkers = {};
+    function updateBusMarkers() {
+      const buses = JSON.parse(localStorage.getItem("buses") || "{}");
+      for (const busId in buses) {
+        const bus = buses[busId];
+        const latLng = [bus.lat, bus.lng];
+        if (!busMarkers[busId]) {
+          busMarkers[busId] = L.marker(latLng)
+            .addTo(map)
+            .bindPopup(`Bus: ${busId}<br>Last updated: ${bus.lastUpdated}`);
+        } else {
+          busMarkers[busId].setLatLng(latLng)
+            .getPopup().setContent(`Bus: ${busId}<br>Last updated: ${bus.lastUpdated}`);
+        }
+      }
+    }
+    setInterval(updateBusMarkers, 5000);
+    updateBusMarkers();
+
+    btnComplaint.addEventListener('click', () => {
+  const busId = complaintBusId.value.trim();
+  const message = complaintMessage.value.trim();
+  const userEmail = localStorage.getItem('userEmail');
+  const userName = localStorage.getItem('userName') || 'Anonymous';
+
+  if (!busId || !message) {
+    complaintMsg.style.color = 'red';
+    complaintMsg.textContent = 'Enter Bus ID and message!';
+    return;
+  }
+
+  const complaints = JSON.parse(localStorage.getItem('complaints') || '[]');
+  complaints.push({
+    busId,
+    message,
+    userEmail,
+    userName,
+    timestamp: new Date().toLocaleString()
+  });
+  localStorage.setItem('complaints', JSON.stringify(complaints));
+
+  complaintMsg.style.color = 'green';
+  complaintMsg.textContent = 'Complaint submitted!';
+  complaintBusId.value = '';
+  complaintMessage.value = '';
+});
+
+  </script>
+</body>
+</html>

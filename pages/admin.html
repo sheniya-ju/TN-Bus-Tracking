@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    html, body { height: 100%; margin:0; font-family:Arial,sans-serif; background:#f8fff8; color:#042; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#024d2f; color:#fff; font-weight:bold; font-size:18px; }
+    .logo { display:flex; align-items:center; gap:10px; }
+    .logo img { height:40px; border-radius:6px; background:#fff; padding:2px; }
+    .logout { background:#ff4d4f; border:none; padding:8px 16px; border-radius:6px; color:white; cursor:pointer; font-weight:bold; }
+    .layout { display:flex; gap:18px; padding:20px; height: calc(100vh - 68px); }
+    .panel { width:360px; background:#e6f4ea; padding:16px; border-radius:12px; overflow-y:auto; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+    .mapwrap { flex:1; border-radius:12px; overflow:hidden; position:relative; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+    input { padding:10px; border-radius:8px; border:1px solid #ccc; background:#fff; color:#042; margin-bottom:10px; width:100%; box-sizing:border-box; }
+    button { padding:10px; border-radius:8px; background:#28a745; border:none; color:#fff; cursor:pointer; width:100%; font-weight:bold; margin-bottom:10px; transition:0.2s; }
+    button:hover { background:#218838; }
+    hr { border:none; border-top:1px solid #ccc; margin:12px 0; }
+    .list { list-style:none; padding:0; margin:0; }
+    .list li { display:flex; flex-direction: column; justify-content:flex-start; align-items:flex-start; padding:8px; border-radius:8px; background:#d9f2e0; margin-bottom:8px; font-size:14px; }
+    .list li span { font-weight:bold; margin-bottom:4px; }
+    .muted { color:#555; font-size:13px; }
+    #map { width:100%; height:100%; }
+   
+
+  </style>
+  <link rel="stylesheet" href="../common.css">
+
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">
+      <img src="../image.jpeg" alt="TN Govt Transport Logo"/>
+      TN Govt – Admin Panel
+    </div>
+    <button id="btnLogout" class="logout">Logout</button>
+  </header>
+
+  <div class="layout">
+    <aside class="panel">
+      <h3>Assign Driver to Bus</h3>
+      <input id="assignDriverEmail" placeholder="Driver Email"/>
+      <input id="assignBusId" placeholder="Bus ID e.g. BUS101"/>
+      <button id="btnAssign">Assign</button>
+      <p id="assignMsg" class="muted"></p>
+
+      <hr/>
+      <h3>Live Bus Locations</h3>
+      <ul id="busesList" class="list"></ul>
+
+      <hr/>
+      <h3>User Complaints</h3>
+      <ul id="complaintsList" class="list"></ul>
+    </aside>
+
+    <section class="mapwrap">
+      <div id="map"></div>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // Logout
+    document.getElementById('btnLogout').addEventListener('click', () => {
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userEmail');
+      window.location.href = '../index.html';
+    });
+
+    // Assign driver to bus
+    const btnAssign = document.getElementById('btnAssign');
+    btnAssign.addEventListener('click', () => {
+      const email = document.getElementById('assignDriverEmail').value.trim();
+      const busId = document.getElementById('assignBusId').value.trim();
+      const assignMsg = document.getElementById('assignMsg');
+
+      if (!email || !busId) {
+        assignMsg.textContent = 'Enter Driver Email and Bus ID';
+        assignMsg.style.color = 'red';
+        return;
+      }
+
+      const users = JSON.parse(localStorage.getItem('users') || '{}');
+      if (!users[email]) {
+        assignMsg.textContent = 'Driver not found!';
+        assignMsg.style.color = 'red';
+        return;
+      }
+
+      if (users[email].role !== 'driver') {
+        assignMsg.textContent = 'Email is not a driver!';
+        assignMsg.style.color = 'red';
+        return;
+      }
+
+      users[email].busId = busId;
+      localStorage.setItem('users', JSON.stringify(users));
+      assignMsg.textContent = `Assigned ${busId} → ${email}`;
+      assignMsg.style.color = 'green';
+    });
+
+    // Initialize map
+    const map = L.map('map').setView([11.1271, 78.6569], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    setTimeout(() => { map.invalidateSize(); }, 500);
+
+    // Update live bus locations
+    function updateBusLocations() {
+      const busesList = document.getElementById('busesList');
+      busesList.innerHTML = '';
+      const users = JSON.parse(localStorage.getItem('users') || '{}');
+      const busesData = JSON.parse(localStorage.getItem('buses') || '{}');
+
+      for (const email in users) {
+        const user = users[email];
+        if (user.role === 'driver' && user.busId) {
+          const loc = busesData[user.busId];
+          const li = document.createElement('li');
+          li.innerHTML = `<span>${user.busId}</span>${loc ? `Lat: ${loc.lat.toFixed(4)}, Lng: ${loc.lng.toFixed(4)}` : 'No location yet'}`;
+          busesList.appendChild(li);
+        }
+      }
+    }
+
+    // Show complaints
+function updateComplaints() {
+  const complaintsList = document.getElementById('complaintsList');
+  complaintsList.innerHTML = '';
+
+  const complaints = JSON.parse(localStorage.getItem('complaints') || '[]');
+  complaints.forEach(c => {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <strong>Bus:</strong> ${c.busId}<br>
+      <strong>User:</strong> ${c.userName} (${c.userEmail})<br>
+      <strong>Message:</strong> ${c.message}<br>
+      <small>${c.timestamp}</small>
+    `;
+    complaintsList.appendChild(li);
+  });
+}
+
+// Refresh complaints every 3 seconds
+setInterval(updateComplaints, 3000);
+updateComplaints(); // initial call
+
+  </script>
+</body>
+</html>

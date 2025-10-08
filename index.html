@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TN Bus Tracking</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <style>
+    /* General reset */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', Arial, sans-serif;
+      background: linear-gradient(to bottom right, #e6f2e6, #b3e6b3);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+      max-width: 450px;
+      width: 90%;
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .logo {
+      width: 100px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      color: #006600;
+      font-size: 1.8rem;
+      margin-bottom: 10px;
+    }
+
+    p {
+      color: #004d00;
+      margin-bottom: 30px;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: none;
+      background-color: #009900;
+      color: white;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .btn:hover {
+      background-color: #007700;
+    }
+
+    a {
+      text-decoration: none;
+      color: #006600;
+      font-weight: 500;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+    .logo {
+  width: 200px;
+  height: 200px;
+  object-fit: cover;  /* makes it fit nicely without stretching */
+  border-radius: 10px; /* optional, adds rounded corners */
+}
+
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- TN Government Transport Logo -->
+    <img src="image.jpeg" alt="TN Govt Transport Logo" class="logo">
+    
+    <h1>Welcome to TN Bus Tracking</h1>
+    <p>Track buses, manage accounts, and access transport services.</p>
+    
+    <button class="btn" onclick="window.location.href='pages/login.html'">Login</button>
+    <button class="btn" onclick="window.location.href='pages/signup.html'">Sign Up</button>
+  </div>
+
+</body>
+</html>
