@@ -1,171 +1,89 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <title>User Panel — TN Bus Tracking</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #F5F5F0;
-      color: #5D866C;
-    }
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 20px;
-      background: #5D866C;
-      color: #F5F5F0;
-      font-weight: bold;
-      font-size: 18px;
-    }
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .logo img {
-      height: 40px;
-      border-radius: 6px;
-      background: #F5F5F0;
-      padding: 2px;
-    }
-    .logout {
-      background: #C2A68C;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 6px;
-      color: #F5F5F0;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    #map {
-      width: 100%;
-      height: calc(100vh - 250px);
-    }
-    .complaint-section {
-      padding: 15px;
-      background: #E6D8C3;
-      margin: 15px;
-      border-radius: 10px;
-      max-width: 500px;
-    }
-    .complaint-section h3 {
-      margin-top: 0;
-      color: #5D866C;
-    }
-    .complaint-section input,
-    .complaint-section textarea {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 10px;
-      border-radius: 6px;
-      border: 1px solid #C2A68C;
-      box-sizing: border-box;
-    }
-    .complaint-section button {
-      padding: 10px 20px;
-      border-radius: 6px;
-      border: none;
-      background: #C2A68C;
-      color: #F5F5F0;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .complaint-section button:hover {
-      background: #5D866C;
-      color: #F5F5F0;
-    }
-    .complaint-msg {
-      margin-top: 8px;
-      font-weight: bold;
-    }
-  </style>
+<meta charset="utf-8"/>
+<title>User Panel — TN Bus Tracking</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#F5F5F0;color:#5D866C;}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#5D866C;color:#F5F5F0;font-weight:bold;font-size:18px;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo img{height:40px;border-radius:6px;background:#F5F5F0;padding:2px;}
+.logout{background:#C2A68C;border:none;padding:8px 16px;border-radius:6px;color:#F5F5F0;cursor:pointer;font-weight:bold;}
+#map{width:100%;height:calc(100vh-250px);}
+.complaint-section{padding:15px;background:#E6D8C3;margin:15px;border-radius:10px;max-width:500px;}
+.complaint-section h3{margin-top:0;color:#5D866C;}
+.complaint-section input,textarea{width:100%;padding:10px;margin-bottom:10px;border-radius:6px;border:1px solid #C2A68C;box-sizing:border-box;}
+.complaint-section button{padding:10px 20px;border-radius:6px;border:none;background:#C2A68C;color:#F5F5F0;font-weight:bold;cursor:pointer;}
+.complaint-section button:hover{background:#5D866C;color:#F5F5F0;}
+.complaint-msg{margin-top:8px;font-weight:bold;}
+</style>
 </head>
 <body>
-  <header class="topbar">
-    <div class="logo">
-      <img src="../image.jpeg" alt="TN Govt Transport Logo"/>
-      TN Govt – User Panel
-    </div>
-    <button id="btnLogout" class="logout">Logout</button>
-  </header>
+<header class="topbar">
+<div class="logo">
+<img src="../image.jpeg"/>
+TN Govt – User Panel
+</div>
+<button id="btnLogout" class="logout">Logout</button>
+</header>
 
-  <div id="map"></div>
+<div id="map"></div>
 
-  <div class="complaint-section">
-    <h3>Raise a Complaint</h3>
-    <input id="complaintBusId" placeholder="Bus ID e.g. BUS101" />
-    <textarea id="complaintMessage" placeholder="Your complaint..." rows="3"></textarea>
-    <button id="btnComplaint">Submit Complaint</button>
-    <p id="complaintMsg" class="complaint-msg"></p>
-  </div>
+<div class="complaint-section">
+<h3>Raise a Complaint</h3>
+<input id="complaintBusId" placeholder="Bus ID e.g. BUS101"/>
+<textarea id="complaintMessage" placeholder="Your complaint..." rows="3"></textarea>
+<button id="btnComplaint">Submit Complaint</button>
+<p id="complaintMsg" class="complaint-msg"></p>
+</div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script type="module">
-    import { db, ref, set, get, auth, signOut } from "./firebase-config.js";
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script type="module">
+import { db, ref, set, get, auth, signOut } from "./firebase-config.js";
 
-    const logoutBtn = document.getElementById("btnLogout");
-    const complaintBusId = document.getElementById("complaintBusId");
-    const complaintMessage = document.getElementById("complaintMessage");
-    const complaintMsg = document.getElementById("complaintMsg");
+document.getElementById("btnLogout").addEventListener("click", async()=>{ await signOut(auth); window.location.href="login.html"; });
 
-    logoutBtn.addEventListener("click", async () => {
-      await signOut(auth);
-      window.location.href = "login.html";
-    });
+const map = L.map('map').setView([11.1271,78.6569],7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 
-    // Initialize map
-    const map = L.map('map').setView([11.1271, 78.6569], 7);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-
-    const busMarkers = {};
-    async function updateBusMarkers() {
-      const busesSnap = await get(ref(db, 'buses'));
-      const buses = busesSnap.exists() ? busesSnap.val() : {};
-      for (const busId in buses) {
-        const bus = buses[busId];
-        const latLng = [bus.lat, bus.lng];
-        if (!busMarkers[busId]) {
-          busMarkers[busId] = L.marker(latLng)
-            .addTo(map)
-            .bindPopup(`Bus: ${busId}<br>Last updated: ${bus.lastUpdated}`);
-        } else {
-          busMarkers[busId].setLatLng(latLng)
-            .getPopup().setContent(`Bus: ${busId}<br>Last updated: ${bus.lastUpdated}`);
-        }
-      }
+const busMarkers={};
+async function updateBusMarkers(){
+  const snap = await get(ref(db,'buses'));
+  const buses = snap.exists()?snap.val():{};
+  for(const busId in buses){
+    const bus = buses[busId];
+    const latLng=[bus.lat,bus.lng];
+    if(!busMarkers[busId]){
+      busMarkers[busId]=L.marker(latLng).addTo(map).bindPopup(`Bus: ${busId}<br>Last updated: ${bus.lastUpdated}`);
+    } else {
+      busMarkers[busId].setLatLng(latLng).getPopup().setContent(`Bus: ${busId}<br>Last updated: ${bus.lastUpdated}`);
     }
-    setInterval(updateBusMarkers, 5000);
-    updateBusMarkers();
+  }
+}
+setInterval(updateBusMarkers,5000); updateBusMarkers();
 
-    // Submit complaint
-    document.getElementById('btnComplaint').addEventListener('click', async () => {
-      const busId = complaintBusId.value.trim();
-      const message = complaintMessage.value.trim();
-      const user = auth.currentUser;
-      if (!busId || !message) {
-        complaintMsg.style.color = 'red';
-        complaintMsg.textContent = 'Enter Bus ID and message!';
-        return;
-      }
-      const complaintsRef = ref(db, 'complaints');
-      const newComplaintRef = ref(db, `complaints/${Date.now()}`);
-      await set(newComplaintRef, {
-        busId,
-        message,
-        userEmail: user.email,
-        userName: user.displayName || 'Anonymous',
-        timestamp: new Date().toLocaleString()
-      });
-      complaintMsg.style.color = 'green';
-      complaintMsg.textContent = 'Complaint submitted!';
-      complaintBusId.value = '';
-      complaintMessage.value = '';
-    });
-  </script>
+document.getElementById('btnComplaint').addEventListener('click', async()=>{
+  const busId=document.getElementById('complaintBusId').value.trim();
+  const message=document.getElementById('complaintMessage').value.trim();
+  const user=auth.currentUser;
+  const complaintMsg=document.getElementById('complaintMsg');
+  if(!busId||!message){ complaintMsg.style.color='red'; complaintMsg.textContent='Enter Bus ID and message!'; return; }
+
+  const newComplaintRef = ref(db, `complaints/${Date.now()}`);
+  await set(newComplaintRef,{
+    busId,
+    message,
+    userEmail:user.email,
+    userName:user.displayName||'Anonymous',
+    timestamp:new Date().toLocaleString()
+  });
+  complaintMsg.style.color='green';
+  complaintMsg.textContent='Complaint submitted!';
+  document.getElementById('complaintBusId').value='';
+  document.getElementById('complaintMessage').value='';
+});
+</script>
 </body>
 </html>
