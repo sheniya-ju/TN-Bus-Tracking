@@ -1,82 +1,87 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <title>Signup — TN Bus Tracking</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <style>
-    body { font-family: Arial,sans-serif; background:#e8f5e9; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
-    .card { background:#a5d6a7; padding:25px; border-radius:12px; width:100%; max-width:400px; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
-    input, select, button { width:100%; padding:12px; margin:8px 0; border-radius:8px; border:1px solid #81c784; }
-    button { background:#388e3c; color:white; font-weight:bold; cursor:pointer; border:none; }
-    button:hover { background:#2e7d32; }
-    .logo { display:block; margin:0 auto 15px auto; width:200px; height:auto; border-radius:10px; object-fit:cover; }
-    input, select { width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #81c784; font-size:1rem; }
-    button { width:100%; padding:10px; border:none; border-radius:8px; background-color:#388e3c; color:white; font-weight:bold; cursor:pointer; }
-    button:hover { background-color:#2e7d32; }
-    .error { color:#d32f2f; margin-top:6px; text-align:center; }
-    .small { font-size:0.9rem; text-align:center; }
-    .error { color:red; font-size:0.9rem; }
-  
-
-  </style>
-  <link rel="stylesheet" href="../common.css">
+<meta charset="utf-8"/>
+<title>Signup — TN Bus Tracking</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+body{font-family:Arial,sans-serif;background:#e8f5e9;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
+.card{background:#a5d6a7;padding:25px;border-radius:12px;width:100%;max-width:400px;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
+input,select,button{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #81c784}
+button{background:#388e3c;color:white;font-weight:bold;cursor:pointer;border:none}
+button:hover{background:#2e7d32}
+.error{color:red;font-size:0.9rem;text-align:center}
+</style>
 </head>
 <body>
-  <div class="card">
-    <img src="../image.jpeg" class="logo">
-    <h2>Create Account</h2>
-    <input id="signupName" placeholder="Full name (optional)"/>
-    <input id="signupEmail" type="email" placeholder="Email"/>
-    <input id="signupPassword" type="password" placeholder="Password"/>
-    <select id="signupRole">
-      <option value="user">User</option>
-      <option value="driver">Driver</option>
-      <option value="admin">Admin</option>
-    </select>
-    <div id="driverExtras">
-      <input id="signupBusId" placeholder="Bus ID (driver only)"/>
-      <input id="signupPhone" placeholder="Phone (optional)"/>
-    </div>
-    <button id="btnSignup">Signup</button>
-    <p class="error" id="signupError"></p>
-    <p>Have account? <a href="login.html">Login</a></p>
-  </div>
+<div class="card">
+<h2>Create Account</h2>
+<input id="name" placeholder="Full name"/>
+<input id="email" type="email" placeholder="Email"/>
+<input id="password" type="password" placeholder="Password"/>
+<select id="role">
+  <option value="user">User</option>
+  <option value="driver">Driver</option>
+  <option value="admin">Admin</option>
+</select>
+<div id="driverExtras">
+  <input id="busid" placeholder="Bus ID (driver only)"/>
+</div>
+<button id="btnSignup">Signup</button>
+<p class="error" id="signupError"></p>
+<p>Already have account? <a href="login.html">Login</a></p>
+</div>
 
-  <script>
-    const signupRole = document.getElementById('signupRole');
-    const driverExtras = document.getElementById('driverExtras');
-    const btnSignup = document.getElementById('btnSignup');
-    const signupError = document.getElementById('signupError');
+<script type="module">
+import { db, ref, set, keyFromEmail, auth, createUserWithEmailAndPassword, createSession } from "./firebase-config.js";
 
-    signupRole.addEventListener('change', () => {
-      driverExtras.style.display = signupRole.value==='driver' ? 'block' : 'none';
+const signupRole=document.getElementById('role');
+const driverExtras=document.getElementById('driverExtras');
+const btnSignup=document.getElementById('btnSignup');
+const signupError=document.getElementById('signupError');
+
+driverExtras.style.display = signupRole.value === 'driver' ? 'block' : 'none';
+signupRole.addEventListener('change', () => {
+  driverExtras.style.display = signupRole.value === 'driver' ? 'block' : 'none';
+});
+
+btnSignup.addEventListener('click', async () => {
+  signupError.textContent = '';
+
+  const name = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim().toLowerCase();
+  const password = document.getElementById('password').value;
+  const role = signupRole.value.toLowerCase();
+  const busId = role === 'driver' ? document.getElementById('busid').value.trim().toLowerCase() : '';
+
+  if(!name || !email || !password){ signupError.textContent='Name, email & password required'; return; }
+
+  try {
+    // Create user in Firebase Auth
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // Store user info in Realtime Database
+    await set(ref(db, `users/${keyFromEmail(email)}`), {
+      name: name.toLowerCase(),
+      email: email,
+      role: role,
+      busid: busId
     });
 
-    btnSignup.addEventListener('click', () => {
-      signupError.textContent='';
-      const name=document.getElementById('signupName').value.trim();
-      const email=document.getElementById('signupEmail').value.trim();
-      const password=document.getElementById('signupPassword').value;
-      const role=signupRole.value;
-      const busId=document.getElementById('signupBusId').value.trim();
-      const phone=document.getElementById('signupPhone').value.trim();
+    // Create session
+    await createSession(user);
 
-      if(!email||!password){signupError.textContent='Email & password required'; return;}
-      if(localStorage.getItem(email)){signupError.textContent='User exists'; return;}
+    // Redirect based on role
+    if(role==='driver') window.location.href='driver.html';
+    else if(role==='admin') window.location.href='admin.html';
+    else window.location.href='user.html';
 
-      const userData={name,email,password,role,busId,phone};
-      localStorage.setItem(email, JSON.stringify(userData));
-
-      // Save session info
-      localStorage.setItem('userEmail', email);
-      localStorage.setItem('userRole', role);
-      localStorage.setItem('userName', name||'Anonymous');
-
-      if(role==='driver') window.location.href='driver.html';
-      else if(role==='admin') window.location.href='admin.html';
-      else window.location.href='user.html';
-    });
-  </script>
+  } catch(e) {
+    signupError.textContent = e.message;
+    console.error(e);
+  }
+});
+</script>
 </body>
 </html>

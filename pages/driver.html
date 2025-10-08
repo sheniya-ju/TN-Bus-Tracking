@@ -1,98 +1,44 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <title>Driver Panel — TN Bus Tracking</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <style>
-    body { font-family:Arial,sans-serif; background:#f8fff8; margin:0; }
-    .topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#024d2f; color:#fff; font-weight:bold; font-size:18px; }
-    .logout { background:#ff4d4f; border:none; padding:8px 16px; border-radius:6px; color:white; cursor:pointer; font-weight:bold; }
-    .panel { padding:20px; }
-    input, button { padding:10px; border-radius:8px; margin-bottom:10px; width:100%; box-sizing:border-box; }
-    button { border:none; background:#28a745; color:white; font-weight:bold; cursor:pointer; }
-    button:hover { background:#218838; }
-    
-  </style>
-  <link rel="stylesheet" href="../common.css">
+<meta charset="utf-8"/>
+<title>Driver Dashboard — TN Bus Tracking</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="../common.css">
+<style>
+body{font-family:Arial,sans-serif;background:#fff3e0;margin:0;padding:0}
+header{background:#fb8c00;color:white;padding:15px;text-align:center;font-size:1.2rem;display:flex;justify-content:space-between;align-items:center}
+header button{background:#ef5350;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
+header button:hover{background:#d32f2f}
+.container{padding:20px}
+h2{color:#e65100}
+</style>
+<script type="module" src="../firebase-config.js" defer></script>
 </head>
 <body>
- <header class="topbar">
-  <div style="display:flex; align-items:center; gap:10px;">
-    <img src="../image.jpeg" alt="TN Govt Transport Logo" style="height:40px; border-radius:6px; background:#fff; padding:2px;">
-    <span>TN Govt – Driver Panel</span>
-  </div>
-  <button id="btnLogout" class="logout">Logout</button>
+<header>
+  <span id="welcomeText">Welcome</span>
+  <button id="btnLogout">Logout</button>
 </header>
+<div class="container">
+  <h2>Driver Panel</h2>
+  <p>Update bus location and manage assigned bus info here.</p>
+  <!-- Add location input or map integration -->
+</div>
 
+<script type="module">
+import { verifySession, logout } from "./firebase-config.js";
 
-  <div class="panel">
-    <h3>Assigned Bus:</h3>
-    <p id="assignedBus">Loading...</p>
+const welcomeText=document.getElementById('welcomeText');
+const btnLogout=document.getElementById('btnLogout');
 
-    <label>Update Frequency (sec)</label>
-    <input type="number" id="freq" placeholder="5" value="5"/>
+btnLogout.addEventListener('click',logout);
 
-    <button id="btnStart">Start Sharing</button>
-    <button id="btnStop" style="display:none;">Stop Sharing</button>
-    <p id="driverStatus"></p>
-  </div>
-
-  <script>
-    const btnStart = document.getElementById('btnStart');
-    const btnStop = document.getElementById('btnStop');
-    const driverStatus = document.getElementById('driverStatus');
-    const freqInput = document.getElementById('freq');
-    const assignedBusDisplay = document.getElementById('assignedBus');
-    const logoutBtn = document.getElementById('btnLogout');
-
-    let intervalId = null;
-
-    const userEmail = localStorage.getItem('userEmail');
-    const users = JSON.parse(localStorage.getItem('users') || '{}');
-    const currentDriver = users[userEmail];
-
-    if (currentDriver && currentDriver.busId) {
-      assignedBusDisplay.textContent = `🚍 ${currentDriver.busId}`;
-    } else {
-      assignedBusDisplay.textContent = "⚠️ No bus assigned yet. Contact Admin.";
-    }
-
-    logoutBtn.addEventListener('click', () => {
-      localStorage.removeItem('userEmail');
-      localStorage.removeItem('userRole');
-      window.location.href = 'login.html';
-    });
-
-    btnStart.addEventListener('click', () => {
-      if (!currentDriver || !currentDriver.busId) { driverStatus.textContent = 'No bus assigned!'; return; }
-      const busId = currentDriver.busId;
-      const freq = Math.max(5, parseInt(freqInput.value) || 5);
-
-      btnStart.style.display = 'none';
-      btnStop.style.display = 'inline-block';
-      driverStatus.textContent = '📡 Sharing location...';
-
-      intervalId = setInterval(() => {
-        if (!navigator.geolocation) { driverStatus.textContent = 'Geolocation not supported'; return; }
-        navigator.geolocation.getCurrentPosition(pos => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          const buses = JSON.parse(localStorage.getItem('buses') || '{}');
-          buses[busId] = { lat, lng, lastUpdated: new Date().toLocaleTimeString() };
-          localStorage.setItem('buses', JSON.stringify(buses));
-          driverStatus.textContent = `Updated ✓ ${new Date().toLocaleTimeString()}`;
-        }, err => { driverStatus.textContent = 'GPS error: ' + err.message; });
-      }, freq * 1000);
-    });
-
-    btnStop.addEventListener('click', () => {
-      clearInterval(intervalId);
-      intervalId = null;
-      btnStart.style.display = 'inline-block';
-      btnStop.style.display = 'none';
-      driverStatus.textContent = '⏹️ Stopped';
-    });
-  </script>
+async function init(){
+  const session=await verifySession();
+  if(session) welcomeText.textContent=`Welcome, ${session.name}`;
+}
+init();
+</script>
 </body>
 </html>

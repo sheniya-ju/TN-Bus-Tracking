@@ -1,5 +1,5 @@
 // src/js/user.js
-import { auth, db } from "./firebase-config.js";
+import { auth, db } from "../../pages/firebase-config.js";
 import { collection, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 import { signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 
