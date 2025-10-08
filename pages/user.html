@@ -21,12 +21,15 @@ body{margin:0;font-family:Arial,sans-serif;background:#F5F5F0;color:#5D866C;}
 </style>
 </head>
 <body>
-<header class="topbar">
-<div class="logo">
-<img src="../image.jpeg"/>
-TN Govt – User Panel
-</div>
-<button id="btnLogout" class="logout">Logout</button>
+<header class="topbar" style="position:relative;">
+  <div class="logo">
+    <img src="../image.jpeg" alt="TN Govt Transport Logo"/>
+    TN Govt – User Panel
+  </div>
+  <button id="btnLogout" class="logout" 
+          style="position:absolute; top:10px; right:10px; font-size:0.7rem; padding:2px 6px;">
+    Logout
+  </button>
 </header>
 
 <div id="map"></div>
@@ -43,8 +46,15 @@ TN Govt – User Panel
 <script type="module">
 import { db, ref, set, get, auth, signOut } from "./firebase-config.js";
 
-document.getElementById("btnLogout").addEventListener("click", async()=>{ await signOut(auth); window.location.href="login.html"; });
-
+// Logout button functionality
+document.getElementById('btnLogout').addEventListener('click', async () => {
+  try {
+    await signOut(auth);
+    window.location.href = 'login.html'; // points to pages/login.html
+  } catch (err) {
+    console.error("Logout failed:", err);
+  }
+});
 const map = L.map('map').setView([11.1271,78.6569],7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 

@@ -16,12 +16,15 @@ p{font-weight:bold;}
 </style>
 </head>
 <body>
-<header class="topbar">
-<div style="display:flex;align-items:center;gap:10px;">
-<img src="../image.jpeg" style="height:40px;border-radius:6px;background:#F5F5F0;padding:2px;">
-<span>TN Govt – Driver Panel</span>
-</div>
-<button id="btnLogout" class="logout">Logout</button>
+<header class="topbar" style="position:relative;">
+  <div class="logo">
+    <img src="../image.jpeg" alt="TN Govt Transport Logo"/>
+    TN Govt – Driver Panel
+  </div>
+  <button id="btnLogout" class="logout" 
+          style="position:absolute; top:10px; right:10px; font-size:0.7rem; padding:2px 6px;">
+    Logout
+  </button>
 </header>
 
 <div class="panel">
@@ -65,7 +68,15 @@ async function loadDriver(){
   });
 }
 
-logoutBtn.addEventListener('click', async()=>{ await signOut(auth); window.location.href='../index.html'; });
+// Logout button functionality
+document.getElementById('btnLogout').addEventListener('click', async () => {
+  try {
+    await signOut(auth);
+    window.location.href = 'login.html'; // points to pages/login.html
+  } catch (err) {
+    console.error("Logout failed:", err);
+  }
+});
 
 btnStart.addEventListener('click', ()=>{
   if(!currentBusId){ driverStatus.textContent='⚠️ No bus assigned!'; return; }
