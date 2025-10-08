@@ -34,15 +34,15 @@ input, select, button {
   margin: 8px 0;
   border-radius: 8px;
   border: 1px solid #C2A68C;
-  box-sizing: border-box;
+  box-sizing:border-box;
 }
 button {
   background: #5D866C;
   color: #F5F5F0;
   font-weight: bold;
-  cursor: pointer;
-  border: none;
-  transition: 0.2s;
+  cursor:pointer;
+  border:none;
+  transition:0.2s;
 }
 button:hover {
   background: #C2A68C;
@@ -76,7 +76,7 @@ a:hover { text-decoration: underline; }
 </div>
 
 <script type="module">
-import { db, ref, get, keyFromEmail, auth, signInWithEmailAndPassword, createSession } from "./firebase-config.js";
+import { db, ref, get, keyFromEmail, auth, signInWithEmailAndPassword } from "./firebase-config.js";
 
 const btnLogin = document.getElementById('btnLogin');
 const loginError = document.getElementById('loginError');
@@ -111,9 +111,6 @@ btnLogin.addEventListener('click', async () => {
       loginError.textContent = 'Role mismatch'; 
       return; 
     }
-
-    // Create session
-    await createSession(user);
 
     // Redirect based on role
     if(role === 'driver') window.location.href = 'driver.html';

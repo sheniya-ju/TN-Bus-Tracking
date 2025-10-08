@@ -1,7 +1,6 @@
-// firebase-config.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
 // Firebase config
 const firebaseConfig = {
@@ -23,29 +22,4 @@ function keyFromEmail(email) {
   return email.replace(/\./g,'_');
 }
 
-// Create session after login/signup
-async function createSession(user) {
-  if(!user) return;
-  await set(ref(db, `sessions/${user.uid}`), {
-    uid: user.uid,
-    email: user.email,
-    timestamp: new Date().toISOString()
-  });
-}
-
-// Logout
-async function logout() {
-  const user = auth.currentUser;
-  if(user) await set(ref(db, `sessions/${user.uid}`), null);
-  await signOut(auth);
-  window.location.href='login.html';
-}
-
-export { 
-  db, ref, set, get, auth, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  keyFromEmail, 
-  createSession, 
-  logout 
-};
+export { db, ref, set, get, auth, createUserWithEmailAndPassword, signInWithEmailAndPassword, keyFromEmail };
