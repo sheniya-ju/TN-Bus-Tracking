@@ -1,130 +1,77 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<title>Signup — TN Bus Tracking</title>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<style>
-body {
-  font-family: Arial, sans-serif;
-  background: #F5F5F0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  margin: 0;
-}
-.card {
-  background: #E6D8C3;
-  padding: 25px;
-  border-radius: 12px;
-  width: 100%;
-  max-width: 400px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  text-align: center;
-}
-.card img.logo {
-  width: 80px;
-  margin-bottom: 15px;
-  border-radius: 8px;
-}
-input, select, button {
-  width: 100%;
-  padding: 12px;
-  margin: 8px 0;
-  border-radius: 8px;
-  border: 1px solid #C2A68C;
-  box-sizing: border-box;
-}
-button {
-  background: #5D866C;
-  color: #F5F5F0;
-  font-weight: bold;
-  cursor: pointer;
-  border: none;
-  transition: 0.2s;
-}
-button:hover {
-  background: #C2A68C;
-}
-.error {
-  color: red;
-  font-size: 0.9rem;
-  text-align: center;
-}
-a {
-  color: #5D866C;
-  text-decoration: none;
-}
-a:hover { text-decoration: underline; }
-</style>
+  <meta charset="UTF-8">
+  <title>Signup - TN Bus Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial; background:#F5F5F0; color:#5D866C; display:flex; justify-content:center; align-items:center; height:100vh; }
+    .container { background:#E6D8C3; padding:30px; border-radius:12px; width:350px; box-shadow:0 2px 8px rgba(0,0,0,0.2);}
+    input, button { width:100%; padding:10px; margin-bottom:12px; border-radius:8px; border:1px solid #C2A68C; box-sizing:border-box; }
+    button { border:none; background:#5D866C; color:#F5F5F0; font-weight:bold; cursor:pointer; }
+    button:hover { background:#C2A68C; color:#5D866C; }
+    p { font-weight:bold; text-align:center; }
+    .error { color:red; }
+    .success { color:green; }
+  </style>
 </head>
 <body>
-<div class="card">
-      <img src="../image.jpeg" class="logo">
-<h2>Create Account</h2>
-<input id="name" placeholder="Full name"/>
-<input id="email" type="email" placeholder="Email"/>
-<input id="password" type="password" placeholder="Password"/>
-<select id="role">
-  <option value="user">User</option>
-  <option value="driver">Driver</option>
-  <option value="admin">Admin</option>
-</select>
-<div id="driverExtras">
-  <input id="busid" placeholder="Bus ID (driver only)"/>
-</div>
-<button id="btnSignup">Signup</button>
-<p class="error" id="signupError"></p>
-<p>Already have account? <a href="login.html">Login</a></p>
-</div>
 
-<script type="module">
-import { db, ref, set, keyFromEmail, auth, createUserWithEmailAndPassword, createSession } from "./firebase-config.js";
+  <div class="container">
+    <h2>Signup</h2>
+    <input type="text" id="name" placeholder="Full Name" required>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <select id="role">
+      <option value="user">User</option>
+      <option value="driver">Driver</option>
+    </select>
+    <button id="signupBtn">Signup</button>
+    <p id="msg"></p>
+  </div>
 
-const signupRole=document.getElementById('role');
-const driverExtras=document.getElementById('driverExtras');
-const btnSignup=document.getElementById('btnSignup');
-const signupError=document.getElementById('signupError');
+  <script type="module">
+    import { db, ref, set, auth, createUserWithEmailAndPassword, keyFromEmail } from "./firebase-config.js";
 
-driverExtras.style.display = signupRole.value === 'driver' ? 'block' : 'none';
-signupRole.addEventListener('change', () => {
-  driverExtras.style.display = signupRole.value === 'driver' ? 'block' : 'none';
-});
+    const signupBtn = document.getElementById('signupBtn');
+    const msg = document.getElementById('msg');
 
-btnSignup.addEventListener('click', async () => {
-  signupError.textContent = '';
+    signupBtn.addEventListener('click', async () => {
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const role = document.getElementById('role').value;
 
-  const name = document.getElementById('name').value.trim();
-  const email = document.getElementById('email').value.trim().toLowerCase();
-  const password = document.getElementById('password').value;
-  const role = signupRole.value.toLowerCase();
-  const busId = role === 'driver' ? document.getElementById('busid').value.trim().toLowerCase() : '';
+      if (!name || !email || !password) {
+        msg.textContent = "All fields are required!";
+        msg.className = "error";
+        return;
+      }
 
-  if(!name || !email || !password){ signupError.textContent='Name, email & password required'; return; }
+      try {
+        // Create Firebase Auth user
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
-  try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+        // Save additional info in Realtime Database
+        const userKey = keyFromEmail(email);
+        await set(ref(db, `users/${userKey}`), {
+          name,
+          email,
+          role,
+          createdAt: new Date().toISOString()
+        });
 
-    await set(ref(db, `users/${keyFromEmail(email)}`), {
-      name: name.toLowerCase(),
-      email: email,
-      role: role,
-      busid: busId
+        msg.textContent = "Signup successful! Redirecting...";
+        msg.className = "success";
+
+        setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+
+      } catch (err) {
+        msg.textContent = err.message;
+        msg.className = "error";
+      }
     });
+  </script>
 
-    await createSession(user);
-
-    if(role==='driver') window.location.href='driver.html';
-    else if(role==='admin') window.location.href='admin.html';
-    else window.location.href='user.html';
-
-  } catch(e) {
-    signupError.textContent = e.message;
-    console.error(e);
-  }
-});
-</script>
 </body>
 </html>
