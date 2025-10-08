@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Login — TN Bus Tracking</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #F5F5F0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+.card {
+  background: #E6D8C3;
+  padding: 25px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  text-align: center;
+}
+.card img.logo {
+  width: 80px;
+  margin-bottom: 15px;
+  border-radius: 8px;
+}
+input, select, button {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  border-radius: 8px;
+  border: 1px solid #C2A68C;
+  box-sizing: border-box;
+}
+button {
+  background: #5D866C;
+  color: #F5F5F0;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  transition: 0.2s;
+}
+button:hover {
+  background: #C2A68C;
+}
+.error {
+  color: red;
+  font-size: 0.9rem;
+  text-align: center;
+}
+a {
+  color: #5D866C;
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="card">
+  <img src="../image.jpeg" class="logo" alt="TN Bus Tracker Logo">
+  <h2>Login</h2>
+  <input id="email" type="email" placeholder="Email"/>
+  <input id="password" type="password" placeholder="Password"/>
+  <center><select id="role">
+    <option value="user">User</option>
+    <option value="driver">Driver</option>
+    <option value="admin">Admin</option>
+  </select></center>
+  <button id="btnLogin">Login</button>
+  <p class="error" id="loginError"></p>
+  <p>Don't have account? <a href="signup.html">Signup</a></p>
+</div>
+
+<script type="module">
+import { db, ref, get, keyFromEmail, auth, signInWithEmailAndPassword, createSession } from "./firebase-config.js";
+
+const btnLogin = document.getElementById('btnLogin');
+const loginError = document.getElementById('loginError');
+
+btnLogin.addEventListener('click', async () => {
+  loginError.textContent = '';
+  const email = document.getElementById('email').value.trim().toLowerCase();
+  const password = document.getElementById('password').value;
+  const role = document.getElementById('role').value.toLowerCase();
+
+  if(!email || !password){ 
+    loginError.textContent = 'Enter email & password'; 
+    return; 
+  }
+
+  try {
+    // Sign in with Firebase Authentication
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // Get user data from Realtime Database
+    const snap = await get(ref(db, `users/${keyFromEmail(email)}`));
+    if(!snap.exists()){ 
+      loginError.textContent = 'User not found'; 
+      return; 
+    }
+
+    const userData = snap.val();
+
+    // Check role
+    if(userData.role !== role){ 
+      loginError.textContent = 'Role mismatch'; 
+      return; 
+    }
+
+    // Create session
+    await createSession(user);
+
+    // Redirect based on role
+    if(role === 'driver') window.location.href = 'driver.html';
+    else if(role === 'admin') window.location.href = 'admin.html';
+    else window.location.href = 'user.html';
+
+  } catch(err) {
+    loginError.textContent = err.message;
+    console.error(err);
+  }
+});
+</script>
+</body>
+</html>
