@@ -1,44 +1,106 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<title>Driver Dashboard — TN Bus Tracking</title>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<link rel="stylesheet" href="../common.css">
-<style>
-body{font-family:Arial,sans-serif;background:#fff3e0;margin:0;padding:0}
-header{background:#fb8c00;color:white;padding:15px;text-align:center;font-size:1.2rem;display:flex;justify-content:space-between;align-items:center}
-header button{background:#ef5350;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
-header button:hover{background:#d32f2f}
-.container{padding:20px}
-h2{color:#e65100}
-</style>
-<script type="module" src="../firebase-config.js" defer></script>
+  <meta charset="utf-8"/>
+  <title>Driver Panel — TN Bus Tracking</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <style>
+    body { font-family:Arial,sans-serif; background:#F5F5F0; margin:0; color:#5D866C; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#5D866C; color:#F5F5F0; font-weight:bold; font-size:18px; }
+    .logout { background:#C2A68C; border:none; padding:8px 16px; border-radius:6px; color:#F5F5F0; cursor:pointer; font-weight:bold; }
+    .panel { padding:20px; background:#E6D8C3; margin:15px; border-radius:12px; max-width:400px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+    input, button { padding:10px; border-radius:8px; margin-bottom:10px; width:100%; box-sizing:border-box; border:1px solid #C2A68C; }
+    button { border:none; background:#C2A68C; color:#F5F5F0; font-weight:bold; cursor:pointer; transition:0.2s; }
+    button:hover { background:#5D866C; color:#F5F5F0; }
+    p { font-weight:bold; }
+  </style>
+  <link rel="stylesheet" href="../common.css">
 </head>
 <body>
-<header>
-  <span id="welcomeText">Welcome</span>
-  <button id="btnLogout">Logout</button>
-</header>
-<div class="container">
-  <h2>Driver Panel</h2>
-  <p>Update bus location and manage assigned bus info here.</p>
-  <!-- Add location input or map integration -->
-</div>
+  <header class="topbar">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <img src="../image.jpeg" alt="TN Govt Transport Logo" style="height:40px; border-radius:6px; background:#F5F5F0; padding:2px;">
+      <span>TN Govt – Driver Panel</span>
+    </div>
+    <button id="btnLogout" class="logout">Logout</button>
+  </header>
 
-<script type="module">
-import { verifySession, logout } from "./firebase-config.js";
+  <div class="panel">
+    <h3>Assigned Bus:</h3>
+    <p id="assignedBus">Loading...</p>
 
-const welcomeText=document.getElementById('welcomeText');
-const btnLogout=document.getElementById('btnLogout');
+    <label>Update Frequency (sec)</label>
+    <input type="number" id="freq" placeholder="5" value="5"/>
 
-btnLogout.addEventListener('click',logout);
+    <button id="btnStart">Start Sharing</button>
+    <button id="btnStop" style="display:none;">Stop Sharing</button>
+    <p id="driverStatus"></p>
+  </div>
 
-async function init(){
-  const session=await verifySession();
-  if(session) welcomeText.textContent=`Welcome, ${session.name}`;
-}
-init();
-</script>
+  <script type="module">
+    import { db, ref, set, get, auth, signOut } from "./firebase-config.js";
+
+    const btnStart = document.getElementById('btnStart');
+    const btnStop = document.getElementById('btnStop');
+    const driverStatus = document.getElementById('driverStatus');
+    const freqInput = document.getElementById('freq');
+    const assignedBusDisplay = document.getElementById('assignedBus');
+    const logoutBtn = document.getElementById('btnLogout');
+
+    let intervalId = null;
+
+    async function loadDriver() {
+      const user = auth.currentUser;
+      if (!user) { window.location.href='login.html'; return; }
+
+      const snap = await get(ref(db, `drivers/${user.email.replace(/\./g,'_')}`));
+      if (snap.exists() && snap.val().busId) {
+        assignedBusDisplay.textContent = `🚍 ${snap.val().busId}`;
+      } else {
+        assignedBusDisplay.textContent = "⚠️ No bus assigned yet. Contact Admin.";
+      }
+    }
+
+    logoutBtn.addEventListener('click', async () => {
+      await signOut(auth);
+      window.location.href = 'login.html';
+    });
+
+    btnStart.addEventListener('click', () => {
+      const user = auth.currentUser;
+      if (!user) { driverStatus.textContent='No user!'; return; }
+
+      const busIdSnap = get(ref(db, `drivers/${user.email.replace(/\./g,'_')}`));
+      busIdSnap.then(snap => {
+        if (!snap.exists() || !snap.val().busId) { driverStatus.textContent = 'No bus assigned!'; return; }
+        const busId = snap.val().busId;
+        const freq = Math.max(5, parseInt(freqInput.value) || 5);
+
+        btnStart.style.display = 'none';
+        btnStop.style.display = 'inline-block';
+        driverStatus.textContent = '📡 Sharing location...';
+
+        intervalId = setInterval(() => {
+          if (!navigator.geolocation) { driverStatus.textContent = 'Geolocation not supported'; return; }
+          navigator.geolocation.getCurrentPosition(async pos => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            await set(ref(db, `buses/${busId}`), { lat, lng, lastUpdated: new Date().toLocaleTimeString() });
+            driverStatus.textContent = `Updated ✓ ${new Date().toLocaleTimeString()}`;
+          }, err => { driverStatus.textContent = 'GPS error: ' + err.message; });
+        }, freq * 1000);
+      });
+    });
+
+    btnStop.addEventListener('click', () => {
+      clearInterval(intervalId);
+      intervalId = null;
+      btnStart.style.display = 'inline-block';
+      btnStop.style.display = 'none';
+      driverStatus.textContent = '⏹️ Stopped';
+    });
+
+    loadDriver();
+  </script>
 </body>
 </html>

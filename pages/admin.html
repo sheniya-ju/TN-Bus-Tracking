@@ -1,44 +1,132 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<title>Admin Dashboard — TN Bus Tracking</title>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<link rel="stylesheet" href="../common.css">
-<style>
-body{font-family:Arial,sans-serif;background:#f3e5f5;margin:0;padding:0}
-header{background:#8e24aa;color:white;padding:15px;text-align:center;font-size:1.2rem;display:flex;justify-content:space-between;align-items:center}
-header button{background:#ef5350;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
-header button:hover{background:#d32f2f}
-.container{padding:20px}
-h2{color:#6a1b9a}
-</style>
-<script type="module" src="../firebase-config.js" defer></script>
+  <meta charset="utf-8"/>
+  <title>Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    html, body { height: 100%; margin:0; font-family:Arial,sans-serif; background:#F5F5F0; color:#5D866C; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#5D866C; color:#F5F5F0; font-weight:bold; font-size:18px; }
+    .logo { display:flex; align-items:center; gap:10px; }
+    .logo img { height:40px; border-radius:6px; background:#F5F5F0; padding:2px; }
+    .logout { background:#C2A68C; border:none; padding:8px 16px; border-radius:6px; color:#F5F5F0; cursor:pointer; font-weight:bold; }
+    .layout { display:flex; gap:18px; padding:20px; height: calc(100vh - 68px); }
+    .panel { width:360px; background:#E6D8C3; padding:16px; border-radius:12px; overflow-y:auto; box-shadow:0 2px 8px rgba(0,0,0,0.1); color:#5D866C; }
+    .mapwrap { flex:1; border-radius:12px; overflow:hidden; position:relative; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+    input { padding:10px; border-radius:8px; border:1px solid #C2A68C; background:#F5F5F0; color:#5D866C; margin-bottom:10px; width:100%; box-sizing:border-box; }
+    button { padding:10px; border-radius:8px; background:#C2A68C; border:none; color:#F5F5F0; cursor:pointer; width:100%; font-weight:bold; margin-bottom:10px; transition:0.2s; }
+    button:hover { background:#5D866C; color:#F5F5F0; }
+    hr { border:none; border-top:1px solid #C2A68C; margin:12px 0; }
+    .list { list-style:none; padding:0; margin:0; }
+    .list li { display:flex; flex-direction: column; justify-content:flex-start; align-items:flex-start; padding:8px; border-radius:8px; background:#F5F5F0; margin-bottom:8px; font-size:14px; color:#5D866C; }
+    .list li span { font-weight:bold; margin-bottom:4px; color:#5D866C; }
+    .muted { color:#5D866C; font-size:13px; }
+    #map { width:100%; height:100%; }
+  </style>
 </head>
 <body>
-<header>
-  <span id="welcomeText">Welcome</span>
-  <button id="btnLogout">Logout</button>
-</header>
-<div class="container">
-  <h2>Admin Panel</h2>
-  <p>Manage buses, drivers, and user complaints from here.</p>
-  <!-- Add driver/bus management tables -->
-</div>
+  <header class="topbar">
+    <div class="logo">
+      <img src="../image.jpeg" alt="TN Govt Transport Logo"/>
+      TN Govt – Admin Panel
+    </div>
+    <button id="btnLogout" class="logout">Logout</button>
+  </header>
 
-<script type="module">
-import { verifySession, logout } from "./firebase-config.js";
+  <div class="layout">
+    <aside class="panel">
+      <h3>Assign Driver to Bus</h3>
+      <input id="assignDriverEmail" placeholder="Driver Email"/>
+      <input id="assignBusId" placeholder="Bus ID e.g. BUS101"/>
+      <button id="btnAssign">Assign</button>
+      <p id="assignMsg" class="muted"></p>
 
-const welcomeText=document.getElementById('welcomeText');
-const btnLogout=document.getElementById('btnLogout');
+      <hr/>
+      <h3>Live Bus Locations</h3>
+      <ul id="busesList" class="list"></ul>
 
-btnLogout.addEventListener('click',logout);
+      <hr/>
+      <h3>User Complaints</h3>
+      <ul id="complaintsList" class="list"></ul>
+    </aside>
 
-async function init(){
-  const session=await verifySession();
-  if(session) welcomeText.textContent=`Welcome, ${session.name}`;
-}
-init();
-</script>
+    <section class="mapwrap">
+      <div id="map"></div>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module">
+    import { db, ref, get, set, auth, signOut } from "./firebase-config.js";
+
+    // Logout
+    document.getElementById('btnLogout').addEventListener('click', async () => {
+      await signOut(auth);
+      window.location.href = '../login.html';
+    });
+
+    // Assign driver to bus
+    const btnAssign = document.getElementById('btnAssign');
+    btnAssign.addEventListener('click', async () => {
+      const email = document.getElementById('assignDriverEmail').value.trim();
+      const busId = document.getElementById('assignBusId').value.trim();
+      const assignMsg = document.getElementById('assignMsg');
+
+      if (!email || !busId) {
+        assignMsg.textContent = 'Enter Driver Email and Bus ID';
+        assignMsg.style.color = 'red';
+        return;
+      }
+
+      const snap = await get(ref(db, `users/${email.replace(/\./g,'_')}`));
+      if (!snap.exists() || snap.val().role !== 'driver') {
+        assignMsg.textContent = 'Driver not found or invalid!';
+        assignMsg.style.color = 'red';
+        return;
+      }
+
+      await set(ref(db, `drivers/${email.replace(/\./g,'_')}`), { busId, assignedAt: new Date().toISOString() });
+      assignMsg.textContent = `Assigned ${busId} → ${email}`;
+      assignMsg.style.color = 'green';
+    });
+
+    // Initialize map
+    const map = L.map('map').setView([11.1271, 78.6569], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    setTimeout(()=>map.invalidateSize(),500);
+
+    // Update buses and complaints
+    async function updateBuses() {
+      const busesList = document.getElementById('busesList');
+      busesList.innerHTML='';
+      const snap = await get(ref(db,'buses'));
+      const busesData = snap.exists() ? snap.val() : {};
+      for (const busId in busesData) {
+        const li=document.createElement('li');
+        li.innerHTML=`<span>${busId}</span>Lat: ${busesData[busId].lat.toFixed(4)}, Lng: ${busesData[busId].lng.toFixed(4)}`;
+        busesList.appendChild(li);
+      }
+    }
+
+    async function updateComplaints() {
+      const complaintsList = document.getElementById('complaintsList');
+      complaintsList.innerHTML='';
+      const snap = await get(ref(db,'complaints'));
+      const complaints = snap.exists() ? snap.val() : [];
+      complaints.forEach(c => {
+        const li = document.createElement('li');
+        li.innerHTML=`<strong>Bus:</strong> ${c.busId}<br>
+          <strong>User:</strong> ${c.userName} (${c.userEmail})<br>
+          <strong>Message:</strong> ${c.message}<br>
+          <small>${c.timestamp}</small>`;
+        complaintsList.appendChild(li);
+      });
+    }
+
+    setInterval(updateBuses,3000);
+    setInterval(updateComplaints,3000);
+    updateBuses(); updateComplaints();
+  </script>
 </body>
 </html>
