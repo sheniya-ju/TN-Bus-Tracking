@@ -32,7 +32,7 @@
     <img src="../image.jpeg" alt="TN Govt Transport Logo"/>
     TN Govt – Admin Panel
   </div>
-  <button id="btnLogout" class="logout">Logout</button>
+  <button id="btnLogout" class="logout" style="position:absolute; top:12px; right:20px; font-size:0.75rem; padding:4px 8px;">Logout</button>
 </header>
 
 <div class="layout">
@@ -61,8 +61,11 @@
 <script type="module">
 import { db, ref, get, set, onValue, auth, signOut, keyFromEmail } from "./firebase-config.js";
 
-// Logout
-document.getElementById('btnLogout').addEventListener('click', async () => { await signOut(auth); window.location.href='../index.html'; });
+// Logout button
+document.getElementById('btnLogout').addEventListener('click', async () => {
+  await signOut(auth);
+  window.location.href = '../pages/login.html';
+});
 
 // Assign driver
 document.getElementById('btnAssign').addEventListener('click', async () => {
