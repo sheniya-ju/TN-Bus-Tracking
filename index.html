@@ -4,14 +4,13 @@
   <meta charset="UTF-8">
   <title>TN Bus Tracking</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  
   <style>
     /* General reset */
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: 'Inter', Arial, sans-serif;
-      background: linear-gradient(to bottom right, #e6f2e6, #b3e6b3);
+      background: linear-gradient(to bottom right, #F5F5F0, #E6D8C3);
       min-height: 100vh;
       display: flex;
       justify-content: center;
@@ -19,7 +18,7 @@
     }
 
     .container {
-      background: white;
+      background: #C2A68C;
       border-radius: 16px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.15);
       max-width: 450px;
@@ -29,19 +28,23 @@
     }
 
     .logo {
-      width: 100px;
+      width: 150px;
+      height: 150px;
+      object-fit: cover;
+      border-radius: 12px;
       margin-bottom: 20px;
     }
 
     h1 {
-      color: #006600;
+      color: #5D866C;
       font-size: 1.8rem;
       margin-bottom: 10px;
     }
 
     p {
-      color: #004d00;
+      color: #F5F5F0;
       margin-bottom: 30px;
+      font-weight: 500;
     }
 
     .btn {
@@ -51,8 +54,8 @@
       margin: 10px 0;
       border-radius: 8px;
       border: none;
-      background-color: #009900;
-      color: white;
+      background-color: #5D866C;
+      color: #F5F5F0;
       font-weight: bold;
       font-size: 1rem;
       cursor: pointer;
@@ -60,31 +63,24 @@
     }
 
     .btn:hover {
-      background-color: #007700;
+      background-color: #C2A68C;
+      color: #5D866C;
     }
 
     a {
       text-decoration: none;
-      color: #006600;
+      color: #5D866C;
       font-weight: 500;
     }
 
     a:hover {
       text-decoration: underline;
     }
-    .logo {
-  width: 200px;
-  height: 200px;
-  object-fit: cover;  /* makes it fit nicely without stretching */
-  border-radius: 10px; /* optional, adds rounded corners */
-}
-
   </style>
 </head>
 <body>
 
   <div class="container">
-    <!-- TN Government Transport Logo -->
     <img src="image.jpeg" alt="TN Govt Transport Logo" class="logo">
     
     <h1>Welcome to TN Bus Tracking</h1>
