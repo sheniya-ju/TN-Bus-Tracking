@@ -1,8 +1,9 @@
 // firebase-config.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js";
-import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyBLSW2MSs9u7amgxiOUzLehjgUJMv_Ci4E",
   authDomain: "tn-bus-tracker-1b4d8.firebaseapp.com",
@@ -22,4 +23,29 @@ function keyFromEmail(email) {
   return email.replace(/\./g,'_');
 }
 
-export { db, ref, set, auth, createUserWithEmailAndPassword, keyFromEmail };
+// Create session after login/signup
+async function createSession(user) {
+  if(!user) return;
+  await set(ref(db, `sessions/${user.uid}`), {
+    uid: user.uid,
+    email: user.email,
+    timestamp: new Date().toISOString()
+  });
+}
+
+// Logout
+async function logout() {
+  const user = auth.currentUser;
+  if(user) await set(ref(db, `sessions/${user.uid}`), null);
+  await signOut(auth);
+  window.location.href='login.html';
+}
+
+export { 
+  db, ref, set, get, auth, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  keyFromEmail, 
+  createSession, 
+  logout 
+};
