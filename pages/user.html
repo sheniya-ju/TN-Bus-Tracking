@@ -13,13 +13,12 @@
     .logout-btn:hover { background-color: #E6D8C3; color: #5D866C; }
     .container { padding: 20px; text-align: center; }
     .route-section { background-color: #E6D8C3; padding: 15px; border-radius: 12px; margin-bottom: 20px; display: inline-block; }
-    .route-section input { padding: 10px; margin-right: 8px; border: 1px solid #C2A68C; border-radius: 6px; width: 250px; }
-    .route-section button { background-color: #5D866C; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; }
+    .route-section select, .route-section button { padding: 10px; margin: 5px 0; border: 1px solid #C2A68C; border-radius: 6px; width: 250px; }
+    .route-section button { background-color: #5D866C; color: white; border:none; cursor:pointer; }
     .route-section button:hover { background-color: #C2A68C; }
-    #busList { margin-top: 15px; background-color: #fff; padding: 10px; border-radius: 10px; }
     #map { width: 100%; height: 400px; margin-top: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
     .complaint-box { background-color: #E6D8C3; margin-top: 25px; padding: 15px; border-radius: 12px; width: 60%; margin-left: auto; margin-right: auto; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-    .complaint-box input, .complaint-box textarea { display: block; width: 100%; margin: 10px 0; padding: 10px; border: 1px solid #C2A68C; border-radius: 6px; }
+    .complaint-box input, .complaint-box textarea, .complaint-box select { display: block; width: 100%; margin: 10px 0; padding: 10px; border: 1px solid #C2A68C; border-radius: 6px; }
     .complaint-box button { background-color: #5D866C; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; }
     .complaint-box button:hover { background-color: #C2A68C; }
   </style>
@@ -33,16 +32,22 @@
   <div class="container">
     <div class="route-section">
       <h3>Find Bus by Route</h3>
-      <input type="text" id="routeInput" placeholder="Enter Route (e.g., Chennai to Guindy)">
-      <button id="searchBtn">Search</button>
+      <select id="routeSelect">
+        <option value="">-- Select Route --</option>
+      </select>
+      <select id="busSelect">
+        <option value="">-- Select Bus --</option>
+      </select>
+      <button id="showBus">Show Bus on Map</button>
     </div>
 
-    <div id="busList"></div>
     <div id="map"></div>
 
     <div class="complaint-box">
       <h3>Raise a Complaint</h3>
-      <input type="text" id="complaintBus" placeholder="Bus Number">
+      <select id="complaintBus">
+        <option value="">-- Select Bus --</option>
+      </select>
       <input type="text" id="userName" placeholder="Your Name">
       <input type="email" id="userEmail" placeholder="Your Email">
       <textarea id="userMessage" placeholder="Enter your complaint"></textarea>
@@ -51,22 +56,19 @@
   </div>
 
   <script type="module">
-    import { db, ref, get, set, push, onAuthStateChanged, auth, signOut } from "../firebase-config.js";
+    import { db, ref, get, onValue, push, set, auth, signOut } from "../firebase-config.js";
 
     let map;
-    let markers = [];
+    let marker;
 
-    // Logout function
-    window.logout = async () => {
-      await signOut(auth);
-      window.location.href = './login.html';
-    }
+    // Logout
+    window.logout = async () => { await signOut(auth); window.location.href = './login.html'; }
 
-    // Initialize map
+    // Initialize Google Map
     function initMap() {
       map = new google.maps.Map(document.getElementById("map"), {
         center: { lat: 11.1271, lng: 78.6569 },
-        zoom: 7,
+        zoom: 7
       });
     }
 
@@ -76,64 +78,92 @@
     script.async = true;
     document.head.appendChild(script);
 
-    // Search buses by route
-    document.getElementById('searchBtn').addEventListener('click', async () => {
-      const route = document.getElementById('routeInput').value.trim();
-      const busListDiv = document.getElementById('busList');
-      busListDiv.innerHTML = 'Loading...';
+    const routeSelect = document.getElementById("routeSelect");
+    const busSelect = document.getElementById("busSelect");
+    const complaintBus = document.getElementById("complaintBus");
+    const showBusBtn = document.getElementById("showBus");
 
-      if(!route){ busListDiv.innerHTML = 'Please enter a route'; return; }
+    // 1️⃣ Load available routes
+    onValue(ref(db, "routes"), snapshot => {
+      const data = snapshot.val();
+      routeSelect.innerHTML = `<option value="">-- Select Route --</option>`;
+      if(data) {
+        Object.keys(data).forEach(route => {
+          const opt = document.createElement("option");
+          opt.value = route;
+          opt.textContent = route;
+          routeSelect.appendChild(opt);
+        });
+      }
+    });
+
+    // 2️⃣ When route is selected, load buses
+    routeSelect.addEventListener("change", async () => {
+      const route = routeSelect.value;
+      busSelect.innerHTML = `<option value="">-- Select Bus --</option>`;
+      complaintBus.innerHTML = `<option value="">-- Select Bus --</option>`;
+      if(!route) return;
 
       const snap = await get(ref(db, `routes/${route}`));
-      if(!snap.exists()){ busListDiv.innerHTML = 'No buses found for this route'; return; }
+      if(snap.exists()) {
+        const buses = snap.val();
+        Object.values(buses).forEach(bus => {
+          const opt = document.createElement("option");
+          opt.value = bus.busNumber;
+          opt.textContent = `Bus: ${bus.busNumber} | Driver: ${bus.driverEmail}`;
+          busSelect.appendChild(opt);
 
-      const buses = snap.val();
-      busListDiv.innerHTML = '';
-      markers.forEach(m => m.setMap(null)); // remove old markers
-      markers = [];
-
-      Object.values(buses).forEach(bus => {
-        // Show bus info
-        const div = document.createElement('div');
-        div.innerHTML = `<b>Bus:</b> ${bus.busNumber} | <b>Driver:</b> ${bus.driverEmail}`;
-        busListDiv.appendChild(div);
-
-        // Add marker on map
-        const position = { lat: bus.latitude || 11.1271, lng: bus.longitude || 78.6569 };
-        const marker = new google.maps.Marker({
-          position,
-          map,
-          title: `Bus: ${bus.busNumber}`
+          const copt = document.createElement("option");
+          copt.value = bus.busNumber;
+          copt.textContent = bus.busNumber;
+          complaintBus.appendChild(copt);
         });
-        markers.push(marker);
-        map.setCenter(position);
-        map.setZoom(12);
+      }
+    });
+
+    // 3️⃣ Show bus location on map
+    showBusBtn.addEventListener("click", () => {
+      const busNo = busSelect.value;
+      if(!busNo){ alert("Select a bus"); return; }
+
+      // Listen for driversLocation
+      onValue(ref(db, "driversLocation"), snapshot => {
+        const data = snapshot.val();
+        if(!data) return;
+        const loc = Object.values(data).find(d => d.busId === busNo);
+        if(!loc) { alert("Bus location not found yet"); return; }
+
+        const pos = { lat: loc.lat, lng: loc.lng };
+        if(!marker) marker = new google.maps.Marker({ position: pos, map, title: `Bus ${busNo}` });
+        else marker.setPosition(pos);
+        map.setCenter(pos);
+        map.setZoom(14);
       });
     });
 
-    // Submit complaint
-    document.getElementById('submitComplaint').addEventListener('click', async () => {
-      const userName = document.getElementById('userName').value.trim();
-      const userEmail = document.getElementById('userEmail').value.trim();
-      const busId = document.getElementById('complaintBus').value.trim();
-      const message = document.getElementById('userMessage').value.trim();
+    // 4️⃣ Submit complaint
+    document.getElementById("submitComplaint").addEventListener("click", async () => {
+      const userName = document.getElementById("userName").value.trim();
+      const userEmail = document.getElementById("userEmail").value.trim();
+      const busId = complaintBus.value;
+      const message = document.getElementById("userMessage").value.trim();
 
-      if(!userName || !userEmail || !busId || !message){ alert('Fill all fields'); return; }
+      if(!userName || !userEmail || !busId || !message) { alert("Fill all fields"); return; }
 
       const complaintRef = push(ref(db, "complaints"));
       await set(complaintRef, { userName, userEmail, busId, message, timestamp: new Date().toISOString() });
 
-      alert('Complaint submitted successfully!');
-      document.getElementById('userName').value = '';
-      document.getElementById('userEmail').value = '';
-      document.getElementById('complaintBus').value = '';
-      document.getElementById('userMessage').value = '';
+      alert("Complaint submitted successfully!");
+      document.getElementById("userName").value = "";
+      document.getElementById("userEmail").value = "";
+      document.getElementById("userMessage").value = "";
+      complaintBus.value = "";
     });
 
     // Optional: check auth
-    onAuthStateChanged(auth, (user) => {
-      if(!user) window.location.href = './login.html';
-    });
+    import { onAuthStateChanged } from "../firebase-config.js";
+    onAuthStateChanged(auth, user => { if(!user) window.location.href = './login.html'; });
+
   </script>
 </body>
 </html>
