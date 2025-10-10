@@ -13,7 +13,8 @@ import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signOut
+  signOut,
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
 // Firebase Config
@@ -31,17 +32,17 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// Helper
+// Helper: safe key from email
 function keyFromEmail(email) {
   return email.replace(/\./g, "_");
 }
 
-// --- SESSION HANDLER ---
+// SESSION helper (stores a small session locally)
 async function createSession(user) {
   localStorage.setItem("userSession", JSON.stringify({ uid: user.uid, email: user.email }));
 }
 
-// --- ASSIGN DRIVER TO BUS & ROUTE ---
+// ASSIGN DRIVER -> writes into drivers and users and routes
 async function assignDriver(email, busId, route, duration) {
   const driverKey = keyFromEmail(email);
   await set(ref(db, `drivers/${driverKey}`), {
@@ -52,7 +53,7 @@ async function assignDriver(email, busId, route, duration) {
   });
   await update(ref(db, `users/${driverKey}`), { assignedBus: busId, route });
 
-  // Automatically add bus under route
+  // Automatically add bus under route (so users can query routes)
   await set(ref(db, `routes/${route}/${busId}`), {
     busNumber: busId,
     driverEmail: email,
@@ -60,10 +61,11 @@ async function assignDriver(email, busId, route, duration) {
     longitude: 0
   });
 
-  alert(`✅ Route '${route}' assigned to ${email} for ${duration}`);
+  // returning a value is better than alerting here — UI can choose to alert
+  return { ok: true, message: `Assigned ${busId} → ${email}` };
 }
 
-// --- UPDATE DRIVER LOCATION ---
+// UPDATE DRIVER LOCATION (driver-side should call with their email)
 async function updateDriverLocation(email, lat, lng) {
   const driverKey = keyFromEmail(email);
   const snap = await get(ref(db, `drivers/${driverKey}`));
@@ -71,10 +73,16 @@ async function updateDriverLocation(email, lat, lng) {
     const busId = snap.val().busId;
     const route = snap.val().route || "unknown";
     await update(ref(db, `buses/${busId}`), { lat, lng, updatedAt: new Date().toISOString(), route });
+    // also write a driversLocation node keyed by driver for admin realtime view
+    await set(ref(db, `driversLocation/${driverKey}`), {
+      lat, lng, busId, time: new Date().toLocaleTimeString()
+    });
+  } else {
+    throw new Error("Driver not assigned in DB");
   }
 }
 
-// --- ADD COMPLAINT ---
+// ADD COMPLAINT
 async function addComplaint(userName, userEmail, busId, message) {
   const complaintRef = push(ref(db, "complaints"));
   await set(complaintRef, {
@@ -86,7 +94,7 @@ async function addComplaint(userName, userEmail, busId, message) {
   });
 }
 
-// --- ADD ROUTE & BUS ---
+// ADD BUS TO ROUTE (if you need to add separately)
 async function addBusToRoute(route, busId, busNumber, driverEmail) {
   await set(ref(db, `routes/${route}/${busId}`), {
     busNumber,
@@ -96,14 +104,15 @@ async function addBusToRoute(route, busId, busNumber, driverEmail) {
   });
 }
 
-// --- LOGOUT FUNCTION ---
+// LOGOUT helper exported (redirects to main index page)
 async function logoutUser() {
   await signOut(auth);
   localStorage.removeItem("userSession");
-  window.location.href = "../pages/login.html";
+  // admin pages are under /pages/, so go up to index
+  window.location.href = "../index.html";
 }
 
-// Export all needed functions
+// Export what pages need
 export {
   db,
   ref,
@@ -116,6 +125,7 @@ export {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
+  onAuthStateChanged,
   keyFromEmail,
   createSession,
   assignDriver,
