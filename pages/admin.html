@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>Admin Dashboard</title>
+  <title>Admin Panel — TN Bus Tracker</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>
@@ -10,49 +10,50 @@
     .topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#5D866C; color:#F5F5F0; font-weight:bold; font-size:18px; }
     .logo { display:flex; align-items:center; gap:10px; }
     .logo img { height:40px; border-radius:6px; background:#F5F5F0; padding:2px; }
-    .logout { background:#C2A68C; border:none; padding:4px 10px; border-radius:4px; color:#F5F5F0; cursor:pointer; font-weight:bold; font-size:0.8rem; transition:0.2s; }
+    .logout { background:#C2A68C; border:none; padding:4px 8px; border-radius:4px; color:#F5F5F0; cursor:pointer; font-weight:bold; font-size:0.7rem; transition:0.2s; }
     .logout:hover { background:#5D866C; }
     .layout { display:flex; gap:18px; padding:20px; height: calc(100vh - 68px); }
-    .panel { width:360px; background:#E6D8C3; padding:16px; border-radius:12px; overflow-y:auto; box-shadow:0 2px 8px rgba(0,0,0,0.1); color:#5D866C; }
+    .panel { width:340px; background:#E6D8C3; padding:16px; border-radius:12px; overflow-y:auto; box-shadow:0 2px 8px rgba(0,0,0,0.1); color:#5D866C; }
     .mapwrap { flex:1; border-radius:12px; overflow:hidden; position:relative; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-    input { padding:10px; border-radius:8px; border:1px solid #C2A68C; background:#F5F5F0; margin-bottom:10px; width:100%; box-sizing:border-box; }
-    button { padding:10px; border-radius:8px; background:#C2A68C; border:none; color:#F5F5F0; cursor:pointer; width:100%; font-weight:bold; margin-bottom:10px; transition:0.2s; }
-    button:hover { background:#5D866C; color:#F5F5F0; }
-    hr { border:none; border-top:1px solid #C2A68C; margin:12px 0; }
-    .list { list-style:none; padding:0; margin:0; }
-    .list li { display:flex; flex-direction: column; padding:8px; border-radius:8px; background:#F5F5F0; margin-bottom:8px; font-size:14px; color:#5D866C; }
-    .list li span { font-weight:bold; margin-bottom:4px; }
-    .muted { color:#5D866C; font-size:13px; }
+    input, textarea, select, button { padding:10px; border-radius:8px; border:1px solid #C2A68C; background:#F5F5F0; margin-bottom:10px; width:100%; box-sizing:border-box; }
+    button { background:#C2A68C; color:#F5F5F0; font-weight:bold; border:none; cursor:pointer; transition:0.2s; }
+    button:hover { background:#5D866C; }
     #map { width:100%; height:100%; }
+    h3 { margin-top:10px; border-bottom:1px solid #C2A68C; padding-bottom:5px; }
+    .complaint { background:#F5F5F0; padding:8px; border-radius:8px; margin-bottom:10px; font-size:0.9rem; }
   </style>
 </head>
 <body>
-<header class="topbar" style="position:relative;">
+<header class="topbar">
   <div class="logo">
     <img src="../image.jpeg" alt="TN Govt Transport Logo"/>
-    TN Govt – Admin Panel
+    Admin Dashboard
   </div>
-  <button id="btnLogout" class="logout" 
-          style="position:absolute; top:10px; right:10px; font-size:0.7rem; padding:2px 6px;">
-    Logout
-  </button>
+  <button id="btnLogout" class="logout">Logout</button>
 </header>
 
 <div class="layout">
   <aside class="panel">
-    <h3>Assign Driver to Bus</h3>
-    <input id="assignDriverEmail" placeholder="Driver Email"/>
-    <input id="assignBusId" placeholder="Bus ID e.g. BUS101"/>
-    <button id="btnAssign">Assign</button>
-    <p id="assignMsg" class="muted"></p>
+    <h3>Assign Route</h3>
+    <input type="email" id="driverEmail" placeholder="Driver Email"/>
+    <input type="text" id="busNo" placeholder="Bus Number"/>
+    <input type="text" id="route" placeholder="Route Details"/>
+    <select id="duration">
+      <option value="Permanent">Permanent</option>
+      <option value="1 Day">1 Day</option>
+      <option value="2 Days">2 Days</option>
+      <option value="1 Month">1 Month</option>
+      <option value="2 Months">2 Months</option>
+      <option value="5 Years">5 Years</option>
+    </select>
+    <button id="assignBus">Assign Bus</button>
+    <p id="assignStatus"></p>
 
-    <hr/>
-    <h3>Live Bus Locations</h3>
-    <ul id="busesList" class="list"></ul>
+    <h3>Driver Locations</h3>
+    <ul id="driverList"></ul>
 
-    <hr/>
     <h3>User Complaints</h3>
-    <ul id="complaintsList" class="list"></ul>
+    <div id="complaints"></div>
   </aside>
 
   <section class="mapwrap">
@@ -62,68 +63,88 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
-import { db, ref, get, set, onValue, auth, signOut, keyFromEmail } from "./firebase-config.js";
+import { db, ref, get, set, push, onValue, auth, signOut, onAuthStateChanged, keyFromEmail } from "./firebase-config.js";
 
-// Logout button functionality
-document.getElementById('btnLogout').addEventListener('click', async () => {
-  try {
-    await signOut(auth);
-    window.location.href = 'login.html'; // points to pages/login.html
-  } catch (err) {
-    console.error("Logout failed:", err);
-  }
-});
-
-// Assign driver
-document.getElementById('btnAssign').addEventListener('click', async () => {
-  const email = keyFromEmail(document.getElementById('assignDriverEmail').value.trim());
-  const busId = document.getElementById('assignBusId').value.trim();
-  const assignMsg = document.getElementById('assignMsg');
-  if(!email || !busId){ assignMsg.textContent='Enter Email & Bus ID'; assignMsg.style.color='red'; return; }
-
-  const snap = await get(ref(db, `users/${email}`));
-  if(!snap.exists() || snap.val().role!=='driver'){ assignMsg.textContent='Driver not found!'; assignMsg.style.color='red'; return; }
-
-  await set(ref(db, `drivers/${email}`), { busId, assignedAt: new Date().toISOString() });
-  await set(ref(db, `users/${email}/assignedBus`), busId);
-  assignMsg.textContent=`Assigned ${busId} → ${snap.val().name || email}`; assignMsg.style.color='green';
-});
-
-// Map
+// Initialize map
 const map = L.map('map').setView([11.1271,78.6569],7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(map);
-setTimeout(()=>map.invalidateSize(),500);
+let markers = {};
 
-// Live buses
-async function updateBuses(){
-  const busesList = document.getElementById('busesList'); busesList.innerHTML='';
-  const snap = await get(ref(db,'buses'));
-  const buses = snap.exists()?snap.val():{};
-  for(const busId in buses){
-    const li = document.createElement('li');
-    li.innerHTML=`<span>${busId}</span>Lat: ${buses[busId].lat.toFixed(4)}, Lng: ${buses[busId].lng.toFixed(4)}`;
-    busesList.appendChild(li);
+// Logout
+document.getElementById('btnLogout').addEventListener('click', async () => {
+  await signOut(auth);
+  window.location.href = 'login.html';
+});
+
+// Check auth
+onAuthStateChanged(auth, (user) => {
+  if(!user) window.location.href = 'login.html';
+});
+
+// Assign bus to driver and automatically create route in DB
+document.getElementById('assignBus').addEventListener('click', async () => {
+  const email = document.getElementById('driverEmail').value.trim().toLowerCase();
+  const busNo = document.getElementById('busNo').value.trim();
+  const route = document.getElementById('route').value.trim();
+  const duration = document.getElementById('duration').value;
+  const assignStatus = document.getElementById('assignStatus');
+
+  if(!email || !busNo || !route){
+    assignStatus.textContent = "All fields are required!";
+    assignStatus.style.color = "red";
+    return;
   }
-}
 
-// Complaints
-async function updateComplaints(){
-  const complaintsList = document.getElementById('complaintsList'); complaintsList.innerHTML='';
-  const snap = await get(ref(db,'complaints'));
-  const complaints = snap.exists()?snap.val():[];
-  Object.values(complaints).forEach(c=>{
-    const li=document.createElement('li');
-    li.innerHTML=`<strong>Bus:</strong> ${c.busId}<br>
-                   <strong>User:</strong> ${c.userName} (${c.userEmail})<br>
-                   <strong>Message:</strong> ${c.message}<br>
-                   <small>${c.timestamp}</small>`;
-    complaintsList.appendChild(li);
+  // Assign driver info
+  await set(ref(db, `assignedDrivers/${keyFromEmail(email)}`), {
+    email, busNo, route, duration,
+    assignedOn: new Date().toLocaleString()
   });
-}
 
-setInterval(updateBuses,3000);
-setInterval(updateComplaints,3000);
-updateBuses(); updateComplaints();
+  // Automatically create route entry
+  await set(ref(db, `routes/${route}/${busNo}`), {
+    busNumber: busNo,
+    driverEmail: email,
+    assignedAt: new Date().toLocaleString()
+  });
+
+  assignStatus.textContent = "Bus assigned successfully!";
+  assignStatus.style.color = "#5D866C";
+});
+
+// Listen to drivers’ live locations
+const driverList = document.getElementById('driverList');
+onValue(ref(db, "driversLocation"), (snapshot) => {
+  const data = snapshot.val();
+  driverList.innerHTML = "";
+  if(!data){ driverList.innerHTML = "<li>No active drivers</li>"; return; }
+
+  Object.keys(data).forEach(key=>{
+    const driver = data[key];
+    const li = document.createElement('li');
+    li.textContent = `${driver.busId} — ${driver.time}`;
+    driverList.appendChild(li);
+
+    const { lat, lng } = driver;
+    if(markers[key]) markers[key].setLatLng([lat, lng]);
+    else markers[key] = L.marker([lat, lng]).addTo(map).bindPopup(`Bus: ${driver.busId}`);
+  });
+});
+
+// Show complaints
+const complaintsDiv = document.getElementById('complaints');
+onValue(ref(db, "complaints"), (snapshot) => {
+  const data = snapshot.val();
+  complaintsDiv.innerHTML = "";
+  if(!data){ complaintsDiv.innerHTML = "<p>No complaints</p>"; return; }
+
+  Object.values(data).forEach(c=>{
+    const div = document.createElement('div');
+    div.className = "complaint";
+    div.innerHTML = `<b>Bus:</b> ${c.busId}<br><b>Complaint:</b> ${c.complaint}<br><b>Time:</b> ${c.time}`;
+    complaintsDiv.appendChild(div);
+  });
+});
 </script>
 </body>
 </html>

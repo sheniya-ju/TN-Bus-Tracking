@@ -1,99 +1,160 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<title>User Panel — TN Bus Tracking</title>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<style>
-body{margin:0;font-family:Arial,sans-serif;background:#F5F5F0;color:#5D866C;}
-.topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#5D866C;color:#F5F5F0;font-weight:bold;font-size:18px;}
-.logo{display:flex;align-items:center;gap:10px;}
-.logo img{height:40px;border-radius:6px;background:#F5F5F0;padding:2px;}
-.logout{background:#C2A68C;border:none;padding:8px 16px;border-radius:6px;color:#F5F5F0;cursor:pointer;font-weight:bold;}
-#map{width:100%;height:calc(100vh-250px);}
-.complaint-section{padding:15px;background:#E6D8C3;margin:15px;border-radius:10px;max-width:500px;}
-.complaint-section h3{margin-top:0;color:#5D866C;}
-.complaint-section input,textarea{width:100%;padding:10px;margin-bottom:10px;border-radius:6px;border:1px solid #C2A68C;box-sizing:border-box;}
-.complaint-section button{padding:10px 20px;border-radius:6px;border:none;background:#C2A68C;color:#F5F5F0;font-weight:bold;cursor:pointer;}
-.complaint-section button:hover{background:#5D866C;color:#F5F5F0;}
-.complaint-msg{margin-top:8px;font-weight:bold;}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Panel | TN Bus Tracker</title>
+  <link rel="stylesheet" href="../style.css">
+  <script type="module" src="../firebase.js" defer></script>
+  <style>
+    body {
+      background-color: #F5F5F0;
+      font-family: "Poppins", sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    .header {
+      background-color: #5D866C;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-size: 1.5rem;
+      position: sticky;
+      top: 0;
+    }
+
+    .logout-btn {
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      background-color: #C2A68C;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 5px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .logout-btn:hover {
+      background-color: #E6D8C3;
+      color: #5D866C;
+    }
+
+    .container {
+      padding: 20px;
+      text-align: center;
+    }
+
+    .route-section {
+      background-color: #E6D8C3;
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      display: inline-block;
+    }
+
+    .route-section input {
+      padding: 10px;
+      margin-right: 8px;
+      border: 1px solid #C2A68C;
+      border-radius: 6px;
+      width: 250px;
+    }
+
+    .route-section button {
+      background-color: #5D866C;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .route-section button:hover {
+      background-color: #C2A68C;
+    }
+
+    #busList {
+      margin-top: 15px;
+      background-color: #fff;
+      padding: 10px;
+      border-radius: 10px;
+    }
+
+    #map {
+      width: 100%;
+      height: 400px;
+      margin-top: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .complaint-box {
+      background-color: #E6D8C3;
+      margin-top: 25px;
+      padding: 15px;
+      border-radius: 12px;
+      width: 60%;
+      margin-left: auto;
+      margin-right: auto;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .complaint-box input, .complaint-box textarea {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid #C2A68C;
+      border-radius: 6px;
+    }
+
+    .complaint-box button {
+      background-color: #5D866C;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .complaint-box button:hover {
+      background-color: #C2A68C;
+    }
+  </style>
 </head>
 <body>
-<header class="topbar" style="position:relative;">
-  <div class="logo">
-    <img src="../image.jpeg" alt="TN Govt Transport Logo"/>
-    TN Govt – User Panel
+  <div class="header">
+    User Panel
+    <button class="logout-btn" onclick="logout()">Logout</button>
   </div>
-  <button id="btnLogout" class="logout" 
-          style="position:absolute; top:10px; right:10px; font-size:0.7rem; padding:2px 6px;">
-    Logout
-  </button>
-</header>
 
-<div id="map"></div>
+  <div class="container">
+    <div class="route-section">
+      <h3>Find Bus by Route</h3>
+      <input type="text" id="routeInput" placeholder="Enter Route (e.g., Chennai to Guindy)">
+      <button onclick="fetchBusesByRoute()">Search</button>
+    </div>
 
-<div class="complaint-section">
-<h3>Raise a Complaint</h3>
-<input id="complaintBusId" placeholder="Bus ID e.g. BUS101"/>
-<textarea id="complaintMessage" placeholder="Your complaint..." rows="3"></textarea>
-<button id="btnComplaint">Submit Complaint</button>
-<p id="complaintMsg" class="complaint-msg"></p>
-</div>
+    <div id="busList"></div>
+    <div id="map"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script type="module">
-import { db, ref, set, get, auth, signOut } from "./firebase-config.js";
+    <div class="complaint-box">
+      <h3>Raise a Complaint</h3>
+      <input type="text" id="complaintBus" placeholder="Bus Number">
+      <input type="text" id="userName" placeholder="Your Name">
+      <input type="email" id="userEmail" placeholder="Your Email">
+      <textarea id="userMessage" placeholder="Enter your complaint"></textarea>
+      <button onclick="submitComplaint()">Submit Complaint</button>
+    </div>
+  </div>
 
-// Logout button functionality
-document.getElementById('btnLogout').addEventListener('click', async () => {
-  try {
-    await signOut(auth);
-    window.location.href = 'login.html'; // points to pages/login.html
-  } catch (err) {
-    console.error("Logout failed:", err);
-  }
-});
-const map = L.map('map').setView([11.1271,78.6569],7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-
-const busMarkers={};
-async function updateBusMarkers(){
-  const snap = await get(ref(db,'buses'));
-  const buses = snap.exists()?snap.val():{};
-  for(const busId in buses){
-    const bus = buses[busId];
-    const latLng=[bus.lat,bus.lng];
-    if(!busMarkers[busId]){
-      busMarkers[busId]=L.marker(latLng).addTo(map).bindPopup(`Bus: ${busId}<br>Last updated: ${bus.lastUpdated}`);
-    } else {
-      busMarkers[busId].setLatLng(latLng).getPopup().setContent(`Bus: ${busId}<br>Last updated: ${bus.lastUpdated}`);
-    }
-  }
-}
-setInterval(updateBusMarkers,5000); updateBusMarkers();
-
-document.getElementById('btnComplaint').addEventListener('click', async()=>{
-  const busId=document.getElementById('complaintBusId').value.trim();
-  const message=document.getElementById('complaintMessage').value.trim();
-  const user=auth.currentUser;
-  const complaintMsg=document.getElementById('complaintMsg');
-  if(!busId||!message){ complaintMsg.style.color='red'; complaintMsg.textContent='Enter Bus ID and message!'; return; }
-
-  const newComplaintRef = ref(db, `complaints/${Date.now()}`);
-  await set(newComplaintRef,{
-    busId,
-    message,
-    userEmail:user.email,
-    userName:user.displayName||'Anonymous',
-    timestamp:new Date().toLocaleString()
-  });
-  complaintMsg.style.color='green';
-  complaintMsg.textContent='Complaint submitted!';
-  document.getElementById('complaintBusId').value='';
-  document.getElementById('complaintMessage').value='';
-});
-</script>
+  <!-- Google Maps Script -->
+  <script async
+    src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap">
+  </script>
 </body>
 </html>
