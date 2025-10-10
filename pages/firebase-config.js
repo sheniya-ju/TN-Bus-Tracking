@@ -1,21 +1,7 @@
 // firebase-config.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import {
-  getDatabase,
-  ref,
-  set,
-  get,
-  onValue,
-  update,
-  push
-} from "https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js";
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+import { getDatabase, ref, set, get, onValue, update, push } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
 // Firebase Config
 const firebaseConfig = {
@@ -32,28 +18,32 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// Helper: safe key from email
+// Convert email to safe Firebase key
 function keyFromEmail(email) {
   return email.replace(/\./g, "_");
 }
 
-// SESSION helper (stores a small session locally)
+// --- SESSION HANDLER ---
 async function createSession(user) {
   localStorage.setItem("userSession", JSON.stringify({ uid: user.uid, email: user.email }));
 }
 
-// ASSIGN DRIVER -> writes into drivers and users and routes
+// --- ASSIGN DRIVER TO BUS & ROUTE ---
 async function assignDriver(email, busId, route, duration) {
   const driverKey = keyFromEmail(email);
+
+  // 1️⃣ Save in drivers node
   await set(ref(db, `drivers/${driverKey}`), {
     busId,
     route,
     assignedAt: new Date().toISOString(),
     duration
   });
+
+  // 2️⃣ Update user info
   await update(ref(db, `users/${driverKey}`), { assignedBus: busId, route });
 
-  // Automatically add bus under route (so users can query routes)
+  // 3️⃣ Add bus under the route
   await set(ref(db, `routes/${route}/${busId}`), {
     busNumber: busId,
     driverEmail: email,
@@ -61,11 +51,18 @@ async function assignDriver(email, busId, route, duration) {
     longitude: 0
   });
 
-  // returning a value is better than alerting here — UI can choose to alert
-  return { ok: true, message: `Assigned ${busId} → ${email}` };
+  // 4️⃣ Add assigned driver record (driver panel uses this)
+  await set(ref(db, `assignedDrivers/${driverKey}`), {
+    busNo: busId,
+    route,
+    assignedAt: new Date().toISOString(),
+    duration
+  });
+
+  alert(`✅ Route '${route}' assigned to ${email} for ${duration}`);
 }
 
-// UPDATE DRIVER LOCATION (driver-side should call with their email)
+// --- UPDATE DRIVER LOCATION ---
 async function updateDriverLocation(email, lat, lng) {
   const driverKey = keyFromEmail(email);
   const snap = await get(ref(db, `drivers/${driverKey}`));
@@ -73,16 +70,10 @@ async function updateDriverLocation(email, lat, lng) {
     const busId = snap.val().busId;
     const route = snap.val().route || "unknown";
     await update(ref(db, `buses/${busId}`), { lat, lng, updatedAt: new Date().toISOString(), route });
-    // also write a driversLocation node keyed by driver for admin realtime view
-    await set(ref(db, `driversLocation/${driverKey}`), {
-      lat, lng, busId, time: new Date().toLocaleTimeString()
-    });
-  } else {
-    throw new Error("Driver not assigned in DB");
   }
 }
 
-// ADD COMPLAINT
+// --- ADD COMPLAINT ---
 async function addComplaint(userName, userEmail, busId, message) {
   const complaintRef = push(ref(db, "complaints"));
   await set(complaintRef, {
@@ -94,7 +85,7 @@ async function addComplaint(userName, userEmail, busId, message) {
   });
 }
 
-// ADD BUS TO ROUTE (if you need to add separately)
+// --- ADD ROUTE & BUS ---
 async function addBusToRoute(route, busId, busNumber, driverEmail) {
   await set(ref(db, `routes/${route}/${busId}`), {
     busNumber,
@@ -104,15 +95,13 @@ async function addBusToRoute(route, busId, busNumber, driverEmail) {
   });
 }
 
-// LOGOUT helper exported (redirects to main index page)
+// --- LOGOUT ---
 async function logoutUser() {
   await signOut(auth);
   localStorage.removeItem("userSession");
-  // admin pages are under /pages/, so go up to index
   window.location.href = "../index.html";
 }
 
-// Export what pages need
 export {
   db,
   ref,
@@ -125,7 +114,6 @@ export {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged,
   keyFromEmail,
   createSession,
   assignDriver,

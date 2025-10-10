@@ -63,94 +63,83 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
-  // Import from same folder (./). If your firebase-config.js is one folder up, change to "../firebase-config.js"
-  import { db, ref, get, set, push, onValue, auth, signOut, onAuthStateChanged, keyFromEmail, assignDriver } from "./firebase-config.js";
+import { db, ref, get, set, push, onValue, auth, signOut, onAuthStateChanged, keyFromEmail, assignDriver } from "./firebase-config.js";
 
-  // Initialize map
-  const map = L.map('map').setView([11.1271,78.6569],7);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(map);
-  let markers = {};
+// Map setup
+const map = L.map('map').setView([11.1271,78.6569],7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(map);
+let markers = {};
 
-  // Logout: sign out and go to main index.html (one level up)
-  document.getElementById('btnLogout').addEventListener('click', async () => {
-    try {
-      await signOut(auth);
-      localStorage.removeItem("userSession");
-      window.location.href = '../index.html';
-    } catch (err) {
-      console.error("Logout failed:", err);
-      alert("Logout failed: " + err.message);
-    }
+// Logout
+document.getElementById('btnLogout').addEventListener('click', async () => {
+  try {
+    await signOut(auth);
+    localStorage.removeItem("userSession");
+    window.location.href = '../index.html';
+  } catch (err) { console.error(err); }
+});
+
+// Ensure auth
+onAuthStateChanged(auth, user => {
+  if (!user) window.location.href = 'login.html';
+});
+
+// Assign bus
+document.getElementById('assignBus').addEventListener('click', async () => {
+  const email = document.getElementById('driverEmail').value.trim().toLowerCase();
+  const busNo = document.getElementById('busNo').value.trim();
+  const route = document.getElementById('route').value.trim();
+  const duration = document.getElementById('duration').value;
+  const status = document.getElementById('assignStatus');
+
+  if(!email || !busNo || !route){
+    status.textContent="All fields required!";
+    status.style.color="red";
+    return;
+  }
+
+  try {
+    await assignDriver(email, busNo, route, duration);
+    status.textContent = `✅ ${busNo} assigned to ${email} successfully!`;
+    status.style.color="#5D866C";
+  } catch (err) {
+    status.textContent = `❌ Failed: ${err.message || err}`;
+    status.style.color="red";
+    console.error(err);
+  }
+});
+
+// Live driver locations
+const driverList = document.getElementById('driverList');
+onValue(ref(db, "driversLocation"), snapshot => {
+  const data = snapshot.val();
+  driverList.innerHTML="";
+  if(!data){ driverList.innerHTML="<li>No active drivers</li>"; return; }
+  Object.keys(data).forEach(key=>{
+    const driver=data[key];
+    const li=document.createElement('li');
+    li.textContent=`${driver.busId} — ${driver.time}`;
+    driverList.appendChild(li);
+
+    const { lat, lng } = driver;
+    if(markers[key]) markers[key].setLatLng([lat,lng]);
+    else markers[key]=L.marker([lat,lng]).addTo(map).bindPopup(`Bus: ${driver.busId}`);
   });
+});
 
-  // Ensure admin is authenticated before using assign (rules require auth)
-  onAuthStateChanged(auth, (user) => {
-    if (!user) {
-      alert("Please log in first!");
-      // login page is in this folder so ../pages/login.html would be wrong from pages — redirect to login page inside pages
-      window.location.href = 'login.html';
-    }
+// Show complaints
+const complaintsDiv = document.getElementById('complaints');
+onValue(ref(db, "complaints"), snapshot=>{
+  const data = snapshot.val();
+  complaintsDiv.innerHTML="";
+  if(!data){ complaintsDiv.innerHTML="<p>No complaints</p>"; return; }
+  Object.values(data).forEach(c=>{
+    const div=document.createElement('div');
+    div.className="complaint";
+    div.innerHTML=`<b>Bus:</b> ${c.busId}<br><b>Complaint:</b> ${c.message || ''}<br><b>User:</b> ${c.userEmail || ''}<br><b>Time:</b> ${c.timestamp ? new Date(c.timestamp).toLocaleString() : ''}`;
+    complaintsDiv.appendChild(div);
   });
-
-  // Assign bus to driver
-  document.getElementById('assignBus').addEventListener('click', async () => {
-    const email = document.getElementById('driverEmail').value.trim().toLowerCase();
-    const busNo = document.getElementById('busNo').value.trim();
-    const route = document.getElementById('route').value.trim();
-    const duration = document.getElementById('duration').value;
-    const assignStatus = document.getElementById('assignStatus');
-
-    if(!email || !busNo || !route){
-      assignStatus.textContent = "All fields are required!";
-      assignStatus.style.color = "red";
-      return;
-    }
-
-    try {
-      // call assignDriver which writes to /drivers, /users and /routes
-      await assignDriver(email, busNo, route, duration);
-      assignStatus.textContent = `✅ ${busNo} assigned to ${email} successfully!`;
-      assignStatus.style.color = "#5D866C";
-    } catch (error) {
-      assignStatus.textContent = "❌ Failed to assign bus: " + (error.message || error);
-      assignStatus.style.color = "red";
-      console.error("Assign error:", error);
-    }
-  });
-
-  // Show drivers' live locations (driversLocation node)
-  const driverList = document.getElementById('driverList');
-  onValue(ref(db, "driversLocation"), (snapshot) => {
-    const data = snapshot.val();
-    driverList.innerHTML = "";
-    if(!data){ driverList.innerHTML = "<li>No active drivers</li>"; return; }
-
-    Object.keys(data).forEach(key=>{
-      const driver = data[key];
-      const li = document.createElement('li');
-      li.textContent = `${driver.busId} — ${driver.time}`;
-      driverList.appendChild(li);
-
-      const { lat, lng } = driver;
-      if(markers[key]) markers[key].setLatLng([lat, lng]);
-      else markers[key] = L.marker([lat, lng]).addTo(map).bindPopup(`Bus: ${driver.busId}`);
-    });
-  });
-
-  // Show complaints realtime
-  const complaintsDiv = document.getElementById('complaints');
-  onValue(ref(db, "complaints"), (snapshot) => {
-    const data = snapshot.val();
-    complaintsDiv.innerHTML = "";
-    if(!data){ complaintsDiv.innerHTML = "<p>No complaints</p>"; return; }
-
-    Object.values(data).forEach(c=>{
-      const div = document.createElement('div');
-      div.className = "complaint";
-      div.innerHTML = `<b>Bus:</b> ${c.busId}<br><b>Complaint:</b> ${c.message || c.complaint || ''}<br><b>User:</b> ${c.userEmail || c.userEmail || ''}<br><b>Time:</b> ${c.timestamp ? new Date(c.timestamp).toLocaleString() : ''}`;
-      complaintsDiv.appendChild(div);
-    });
-  });
+});
 </script>
 </body>
 </html>

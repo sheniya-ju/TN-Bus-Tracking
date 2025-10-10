@@ -55,54 +55,45 @@ const status = document.getElementById('status');
 const busInfo = document.getElementById('busInfo');
 const btnShare = document.getElementById('btnShare');
 
-// ✅ Logout
+// Logout
 document.getElementById('btnLogout').addEventListener('click', async () => {
-  try {
-    await signOut(auth);
-    window.location.href = './login.html';
-  } catch (err) {
-    console.error('Logout failed:', err);
-  }
+  await signOut(auth);
+  window.location.href = './login.html';
 });
 
-// ✅ Check auth user
+// Check auth user & fetch assigned bus
 onAuthStateChanged(auth, async (user) => {
   if(!user) return window.location.href = './login.html';
   const emailKey = keyFromEmail(user.email);
 
-  const assignedSnap = await get(ref(db, `assignedDrivers/${emailKey}`));
-  if(!assignedSnap.exists()){
-    busInfo.textContent='No bus assigned yet.';
+  const snap = await get(ref(db, `assignedDrivers/${emailKey}`));
+  if(!snap.exists()){
+    busInfo.textContent = 'No bus assigned yet.';
     return;
   }
 
-  const assignedData = assignedSnap.val();
-  busInfo.textContent = `Bus: ${assignedData.busNo} | Route: ${assignedData.route}`;
+  const busData = snap.val();
+  busInfo.textContent = `Bus: ${busData.busNo} | Route: ${busData.route}`;
 
-  // ✅ Share live location
+  // Share live location
   btnShare.addEventListener('click', ()=>{
     if(!navigator.geolocation){
-      status.textContent='Geolocation not supported.';
-      status.style.color='red';
-      return;
+      status.textContent='Geolocation not supported.'; status.style.color='red'; return;
     }
-
-    status.textContent='Sharing live location...';
-    status.style.color='#5D866C';
-
+    status.textContent='Sharing live location...'; status.style.color='#5D866C';
+    
     navigator.geolocation.watchPosition(async pos=>{
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-      const data = { lat, lng, busId: assignedData.busNo, time: new Date().toLocaleTimeString() };
+      const data = { lat, lng, busId: busData.busNo, route: busData.route, time: new Date().toLocaleTimeString() };
       await set(ref(db, `driversLocation/${emailKey}`), data);
 
       if(marker) marker.setLatLng([lat, lng]);
-      else marker = L.marker([lat, lng]).addTo(map).bindPopup(`Bus: ${assignedData.busNo}`);
+      else marker = L.marker([lat, lng]).addTo(map).bindPopup(`Bus: ${busData.busNo}`);
       map.setView([lat, lng], 14);
       status.textContent=`Location updated at ${data.time}`;
     }, err=>{
-      status.textContent='Unable to get location.';
-      status.style.color='red';
+      status.textContent='Unable to get location.'; status.style.color='red';
     });
   });
 });

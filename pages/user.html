@@ -7,129 +7,27 @@
   <link rel="stylesheet" href="../style.css">
   <script type="module" src="../firebase.js" defer></script>
   <style>
-    body {
-      background-color: #F5F5F0;
-      font-family: "Poppins", sans-serif;
-      margin: 0;
-      padding: 0;
-    }
-
-    .header {
-      background-color: #5D866C;
-      color: white;
-      padding: 15px;
-      text-align: center;
-      font-size: 1.5rem;
-      position: sticky;
-      top: 0;
-    }
-
-    .logout-btn {
-      position: absolute;
-      top: 10px;
-      right: 20px;
-      background-color: #C2A68C;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 5px;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-
-    .logout-btn:hover {
-      background-color: #E6D8C3;
-      color: #5D866C;
-    }
-
-    .container {
-      padding: 20px;
-      text-align: center;
-    }
-
-    .route-section {
-      background-color: #E6D8C3;
-      padding: 15px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      display: inline-block;
-    }
-
-    .route-section input {
-      padding: 10px;
-      margin-right: 8px;
-      border: 1px solid #C2A68C;
-      border-radius: 6px;
-      width: 250px;
-    }
-
-    .route-section button {
-      background-color: #5D866C;
-      color: white;
-      padding: 10px 15px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
-    .route-section button:hover {
-      background-color: #C2A68C;
-    }
-
-    #busList {
-      margin-top: 15px;
-      background-color: #fff;
-      padding: 10px;
-      border-radius: 10px;
-    }
-
-    #map {
-      width: 100%;
-      height: 400px;
-      margin-top: 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    }
-
-    .complaint-box {
-      background-color: #E6D8C3;
-      margin-top: 25px;
-      padding: 15px;
-      border-radius: 12px;
-      width: 60%;
-      margin-left: auto;
-      margin-right: auto;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-
-    .complaint-box input, .complaint-box textarea {
-      display: block;
-      width: 100%;
-      margin: 10px 0;
-      padding: 10px;
-      border: 1px solid #C2A68C;
-      border-radius: 6px;
-    }
-
-    .complaint-box button {
-      background-color: #5D866C;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
-    .complaint-box button:hover {
-      background-color: #C2A68C;
-    }
+    body { background-color: #F5F5F0; font-family: "Poppins", sans-serif; margin:0; padding:0; }
+    .header { background-color: #5D866C; color:white; padding:15px; text-align:center; font-size:1.5rem; position:sticky; top:0; }
+    .logout-btn { position:absolute; top:10px; right:20px; background-color:#C2A68C; color:white; border:none; padding:6px 12px; border-radius:5px; cursor:pointer; }
+    .logout-btn:hover { background-color:#E6D8C3; color:#5D866C; }
+    .container { padding:20px; text-align:center; }
+    .route-section { background-color:#E6D8C3; padding:15px; border-radius:12px; margin-bottom:20px; display:inline-block; }
+    .route-section input { padding:10px; margin-right:8px; border:1px solid #C2A68C; border-radius:6px; width:250px; }
+    .route-section button { background-color:#5D866C; color:white; padding:10px 15px; border:none; border-radius:6px; cursor:pointer; }
+    .route-section button:hover { background-color:#C2A68C; }
+    #busList { margin-top:15px; background-color:#fff; padding:10px; border-radius:10px; }
+    #map { width:100%; height:400px; margin-top:20px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+    .complaint-box { background-color:#E6D8C3; margin-top:25px; padding:15px; border-radius:12px; width:60%; margin-left:auto; margin-right:auto; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+    .complaint-box input, .complaint-box textarea { display:block; width:100%; margin:10px 0; padding:10px; border:1px solid #C2A68C; border-radius:6px; }
+    .complaint-box button { background-color:#5D866C; color:white; border:none; padding:10px 15px; border-radius:6px; cursor:pointer; }
+    .complaint-box button:hover { background-color:#C2A68C; }
   </style>
 </head>
 <body>
   <div class="header">
     User Panel
-    <button class="logout-btn" onclick="logout()">Logout</button>
+    <button class="logout-btn" onclick="logoutUser()">Logout</button>
   </div>
 
   <div class="container">
@@ -152,9 +50,53 @@
     </div>
   </div>
 
-  <!-- Google Maps Script -->
-  <script async
-    src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap">
-  </script>
+<script type="module">
+import { db, ref, get, onValue, auth, signOut } from "../firebase.js";
+
+// Map initialization
+let map = L.map('map').setView([11.1271,78.6569],7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(map);
+let busMarkers = {};
+
+window.logoutUser = async function() {
+  await signOut(auth);
+  window.location.href = './login.html';
+}
+
+// Fetch buses by route
+window.fetchBusesByRoute = async function() {
+  const route = document.getElementById('routeInput').value.trim();
+  const busListDiv = document.getElementById('busList');
+  busListDiv.innerHTML='Loading...';
+
+  const snap = await get(ref(db, `routes/${route}`));
+  if(!snap.exists()){
+    busListDiv.innerHTML='No buses found for this route.';
+    return;
+  }
+
+  busListDiv.innerHTML='';
+  const buses = snap.val();
+
+  Object.keys(buses).forEach(busId=>{
+    const bus = buses[busId];
+    const busDiv = document.createElement('div');
+    busDiv.innerHTML = `<b>Bus Number:</b> ${bus.busNumber} <br><b>Driver:</b> ${bus.driverEmail}`;
+    busDiv.style.marginBottom='10px';
+    busListDiv.appendChild(busDiv);
+
+    // Show live location
+    onValue(ref(db, `driversLocation/${bus.driverEmail.replace(/\./g,'_')}`), (locSnap)=>{
+      const loc = locSnap.val();
+      if(loc){
+        if(busMarkers[busId]) busMarkers[busId].setLatLng([loc.lat, loc.lng]);
+        else busMarkers[busId] = L.marker([loc.lat, loc.lng]).addTo(map)
+          .bindPopup(`Bus: ${bus.busNumber}<br>Driver: ${bus.driverEmail}`);
+      }
+    });
+  });
+}
+</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>
