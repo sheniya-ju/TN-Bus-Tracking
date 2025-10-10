@@ -1,25 +1,25 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <title>Driver Panel — TN Bus Tracker</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <style>
-    html, body { height:100%; margin:0; font-family:Arial,sans-serif; background:#F5F5F0; color:#5D866C; }
-    .topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#5D866C; color:#F5F5F0; font-weight:bold; font-size:18px; }
-    .logo { display:flex; align-items:center; gap:10px; }
-    .logo img { height:40px; border-radius:6px; background:#F5F5F0; padding:2px; }
-    .logout { background:#C2A68C; border:none; padding:4px 8px; border-radius:4px; color:#F5F5F0; cursor:pointer; font-weight:bold; font-size:0.7rem; transition:0.2s; }
-    .logout:hover { background:#5D866C; }
-    .layout { display:flex; gap:18px; padding:20px; height: calc(100vh - 68px); }
-    .panel { width:320px; background:#E6D8C3; padding:16px; border-radius:12px; overflow-y:auto; box-shadow:0 2px 8px rgba(0,0,0,0.1); color:#5D866C; }
-    .mapwrap { flex:1; border-radius:12px; overflow:hidden; position:relative; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-    input, button { padding:10px; border-radius:8px; border:1px solid #C2A68C; background:#F5F5F0; margin-bottom:10px; width:100%; box-sizing:border-box; }
-    button { background:#C2A68C; color:#F5F5F0; font-weight:bold; border:none; cursor:pointer; transition:0.2s; }
-    button:hover { background:#5D866C; }
-    #map { width:100%; height:100%; }
-  </style>
+<meta charset="utf-8"/>
+<title>Driver Panel — TN Bus Tracker</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+html, body { height:100%; margin:0; font-family:Arial,sans-serif; background:#F5F5F0; color:#5D866C; }
+.topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#5D866C; color:#F5F5F0; font-weight:bold; font-size:18px; }
+.logo { display:flex; align-items:center; gap:10px; }
+.logo img { height:40px; border-radius:6px; background:#F5F5F0; padding:2px; }
+.logout { background:#C2A68C; border:none; padding:4px 8px; border-radius:4px; color:#F5F5F0; cursor:pointer; font-weight:bold; font-size:0.7rem; transition:0.2s; }
+.logout:hover { background:#5D866C; }
+.layout { display:flex; gap:18px; padding:20px; height: calc(100vh - 68px); }
+.panel { width:320px; background:#E6D8C3; padding:16px; border-radius:12px; overflow-y:auto; box-shadow:0 2px 8px rgba(0,0,0,0.1); color:#5D866C; }
+.mapwrap { flex:1; border-radius:12px; overflow:hidden; position:relative; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+input, button { padding:10px; border-radius:8px; border:1px solid #C2A68C; background:#F5F5F0; margin-bottom:10px; width:100%; box-sizing:border-box; }
+button { background:#C2A68C; color:#F5F5F0; font-weight:bold; border:none; cursor:pointer; transition:0.2s; }
+button:hover { background:#5D866C; }
+#map { width:100%; height:100%; }
+</style>
 </head>
 <body>
 <header class="topbar">
@@ -45,7 +45,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
-import { db, ref, get, auth, onAuthStateChanged, signOut, keyFromEmail, update } from "./firebase-config.js";
+import { db, ref, get, auth, onAuthStateChanged, signOut, keyFromEmail, set } from "./firebase.js";
 
 const map = L.map('map').setView([11.1271,78.6569],7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(map);
@@ -55,13 +55,11 @@ const status = document.getElementById('status');
 const busInfo = document.getElementById('busInfo');
 const btnShare = document.getElementById('btnShare');
 
-// Logout
 document.getElementById('btnLogout').addEventListener('click', async () => {
   await signOut(auth);
   window.location.href = './login.html';
 });
 
-// Check auth & fetch assigned bus
 onAuthStateChanged(auth, async (user) => {
   if(!user) return window.location.href = './login.html';
   const emailKey = keyFromEmail(user.email);
@@ -73,37 +71,23 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   const busData = snap.val();
-  busInfo.innerHTML = `
-    <b>Bus:</b> ${busData.busNo} <br>
-    <b>Route:</b> ${busData.route} <br>
-    <b>Duration:</b> ${busData.duration}
-  `;
+  busInfo.innerHTML = `<b>Bus:</b> ${busData.busNo} <br> <b>Route:</b> ${busData.route} <br> <b>Duration:</b> ${busData.duration}`;
 
   btnShare.addEventListener('click', () => {
-    if(!navigator.geolocation){
-      status.textContent='Geolocation not supported.'; 
-      status.style.color='red'; 
-      return;
-    }
-    status.textContent='Sharing live location...'; 
-    status.style.color='#5D866C';
-
+    if(!navigator.geolocation){ status.textContent='Geolocation not supported.'; return; }
+    status.textContent='Sharing live location...';
+    
     navigator.geolocation.watchPosition(async pos => {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-
       const data = { lat, lng, busId: busData.busNo, route: busData.route, time: new Date().toLocaleTimeString() };
-      await update(ref(db, `driversLocation/${emailKey}`), data);
-      await update(ref(db, `routes/${busData.route}/${busData.busNo}`), { latitude: lat, longitude: lng, lastUpdated: new Date().toISOString() });
+      await set(ref(db, `driversLocation/${emailKey}`), data);
 
-      if(marker) marker.setLatLng([lat,lng]);
-      else marker = L.marker([lat,lng]).addTo(map).bindPopup(`Bus: ${busData.busNo}`);
-      map.setView([lat,lng], 14);
+      if(marker) marker.setLatLng([lat, lng]);
+      else marker = L.marker([lat, lng]).addTo(map).bindPopup(`Bus: ${busData.busNo}`);
+      map.setView([lat, lng], 14);
       status.textContent=`Location updated at ${data.time}`;
-    }, err => {
-      status.textContent='Unable to get location.'; 
-      status.style.color='red';
-    }, { enableHighAccuracy:true });
+    }, err => { status.textContent='Unable to get location.'; });
   });
 });
 </script>

@@ -1,4 +1,4 @@
-// firebase.js
+// firebase-config.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import {
   getDatabase,
@@ -62,11 +62,12 @@ async function assignDriver(email, busId, route, duration) {
 
   await update(ref(db, `users/${driverKey}`), { assignedBus: busId, route });
 
+  // Add bus under route (dynamic)
   await set(ref(db, `routes/${route}/${busId}`), {
     busNumber: busId,
     driverEmail: email,
-    latitude: 11.1271, // default initial latitude
-    longitude: 78.6569 // default initial longitude
+    latitude: 0,
+    longitude: 0
   });
 
   return { ok: true, message: `Assigned ${busId} → ${email}` };
@@ -79,9 +80,9 @@ async function updateDriverLocation(email, lat, lng) {
   if (snap.exists()) {
     const busId = snap.val().busId;
     const route = snap.val().route || "unknown";
-    await update(ref(db, `routes/${route}/${busId}`), { latitude: lat, longitude: lng, updatedAt: new Date().toISOString() });
+
     await set(ref(db, `driversLocation/${driverKey}`), {
-      lat, lng, busId, time: new Date().toLocaleTimeString()
+      lat, lng, busId, route, time: new Date().toLocaleTimeString()
     });
   } else {
     throw new Error("Driver not assigned in DB");
