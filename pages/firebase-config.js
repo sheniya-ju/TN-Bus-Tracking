@@ -1,7 +1,21 @@
 // firebase-config.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import { getDatabase, ref, set, get, onValue, update, push } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+import {
+  getDatabase,
+  ref,
+  set,
+  get,
+  onValue,
+  update,
+  push
+} from "https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
 // Firebase Config
 const firebaseConfig = {
@@ -18,21 +32,29 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// Convert email to safe Firebase key
+// Helper: safe key from email
 function keyFromEmail(email) {
   return email.replace(/\./g, "_");
 }
 
-// --- SESSION HANDLER ---
+// SESSION helper
 async function createSession(user) {
   localStorage.setItem("userSession", JSON.stringify({ uid: user.uid, email: user.email }));
 }
 
-// --- ASSIGN DRIVER TO BUS & ROUTE ---
+// ASSIGN DRIVER -> writes into assignedDrivers, drivers, users, and routes
 async function assignDriver(email, busId, route, duration) {
   const driverKey = keyFromEmail(email);
 
-  // 1️⃣ Save in drivers node
+  // 1️⃣ Assigned driver info
+  await set(ref(db, `assignedDrivers/${driverKey}`), {
+    busNo: busId,
+    route: route,
+    duration: duration,
+    assignedAt: new Date().toISOString()
+  });
+
+  // 2️⃣ Driver main node
   await set(ref(db, `drivers/${driverKey}`), {
     busId,
     route,
@@ -40,10 +62,10 @@ async function assignDriver(email, busId, route, duration) {
     duration
   });
 
-  // 2️⃣ Update user info
+  // 3️⃣ Update user node (optional)
   await update(ref(db, `users/${driverKey}`), { assignedBus: busId, route });
 
-  // 3️⃣ Add bus under the route
+  // 4️⃣ Add bus under route (users can query route)
   await set(ref(db, `routes/${route}/${busId}`), {
     busNumber: busId,
     driverEmail: email,
@@ -51,18 +73,10 @@ async function assignDriver(email, busId, route, duration) {
     longitude: 0
   });
 
-  // 4️⃣ Add assigned driver record (driver panel uses this)
-  await set(ref(db, `assignedDrivers/${driverKey}`), {
-    busNo: busId,
-    route,
-    assignedAt: new Date().toISOString(),
-    duration
-  });
-
-  alert(`✅ Route '${route}' assigned to ${email} for ${duration}`);
+  return { ok: true, message: `Assigned ${busId} → ${email}` };
 }
 
-// --- UPDATE DRIVER LOCATION ---
+// UPDATE DRIVER LOCATION
 async function updateDriverLocation(email, lat, lng) {
   const driverKey = keyFromEmail(email);
   const snap = await get(ref(db, `drivers/${driverKey}`));
@@ -70,10 +84,16 @@ async function updateDriverLocation(email, lat, lng) {
     const busId = snap.val().busId;
     const route = snap.val().route || "unknown";
     await update(ref(db, `buses/${busId}`), { lat, lng, updatedAt: new Date().toISOString(), route });
+    // driversLocation for admin realtime view
+    await set(ref(db, `driversLocation/${driverKey}`), {
+      lat, lng, busId, time: new Date().toLocaleTimeString()
+    });
+  } else {
+    throw new Error("Driver not assigned in DB");
   }
 }
 
-// --- ADD COMPLAINT ---
+// ADD COMPLAINT
 async function addComplaint(userName, userEmail, busId, message) {
   const complaintRef = push(ref(db, "complaints"));
   await set(complaintRef, {
@@ -85,23 +105,14 @@ async function addComplaint(userName, userEmail, busId, message) {
   });
 }
 
-// --- ADD ROUTE & BUS ---
-async function addBusToRoute(route, busId, busNumber, driverEmail) {
-  await set(ref(db, `routes/${route}/${busId}`), {
-    busNumber,
-    driverEmail,
-    latitude: 0,
-    longitude: 0
-  });
-}
-
-// --- LOGOUT ---
+// LOGOUT helper
 async function logoutUser() {
   await signOut(auth);
   localStorage.removeItem("userSession");
   window.location.href = "../index.html";
 }
 
+// Export
 export {
   db,
   ref,
@@ -114,11 +125,11 @@ export {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
+  onAuthStateChanged,
   keyFromEmail,
   createSession,
   assignDriver,
   updateDriverLocation,
   addComplaint,
-  addBusToRoute,
   logoutUser
 };
