@@ -1,4 +1,4 @@
-// firebase-config.js
+// firebase.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import {
   getDatabase,
@@ -46,7 +46,6 @@ async function createSession(user) {
 async function assignDriver(email, busId, route, duration) {
   const driverKey = keyFromEmail(email);
 
-  // 1️⃣ Assigned driver info
   await set(ref(db, `assignedDrivers/${driverKey}`), {
     busNo: busId,
     route: route,
@@ -54,7 +53,6 @@ async function assignDriver(email, busId, route, duration) {
     assignedAt: new Date().toISOString()
   });
 
-  // 2️⃣ Driver main node
   await set(ref(db, `drivers/${driverKey}`), {
     busId,
     route,
@@ -62,15 +60,13 @@ async function assignDriver(email, busId, route, duration) {
     duration
   });
 
-  // 3️⃣ Update user node (optional)
   await update(ref(db, `users/${driverKey}`), { assignedBus: busId, route });
 
-  // 4️⃣ Add bus under route (users can query route)
   await set(ref(db, `routes/${route}/${busId}`), {
     busNumber: busId,
     driverEmail: email,
-    latitude: 0,
-    longitude: 0
+    latitude: 11.1271, // default initial latitude
+    longitude: 78.6569 // default initial longitude
   });
 
   return { ok: true, message: `Assigned ${busId} → ${email}` };
@@ -83,8 +79,7 @@ async function updateDriverLocation(email, lat, lng) {
   if (snap.exists()) {
     const busId = snap.val().busId;
     const route = snap.val().route || "unknown";
-    await update(ref(db, `buses/${busId}`), { lat, lng, updatedAt: new Date().toISOString(), route });
-    // driversLocation for admin realtime view
+    await update(ref(db, `routes/${route}/${busId}`), { latitude: lat, longitude: lng, updatedAt: new Date().toISOString() });
     await set(ref(db, `driversLocation/${driverKey}`), {
       lat, lng, busId, time: new Date().toLocaleTimeString()
     });
@@ -112,7 +107,6 @@ async function logoutUser() {
   window.location.href = "../index.html";
 }
 
-// Export
 export {
   db,
   ref,

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>User Panel | TN Bus Tracker</title>
   <link rel="stylesheet" href="../style.css">
-  <script type="module" src="../firebase.js" defer></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>
     body { background-color: #F5F5F0; font-family: "Poppins", sans-serif; margin: 0; padding: 0; }
     .header { background-color: #5D866C; color: white; padding: 15px; text-align: center; font-size: 1.5rem; position: sticky; top: 0; }
@@ -26,18 +26,14 @@
 <body>
   <div class="header">
     User Panel
-    <button class="logout-btn" onclick="logout()">Logout</button>
+    <button class="logout-btn" id="logoutBtn">Logout</button>
   </div>
 
   <div class="container">
     <div class="route-section">
       <h3>Find Bus by Route</h3>
-      <select id="routeSelect">
-        <option value="">-- Select Route --</option>
-      </select>
-      <select id="busSelect">
-        <option value="">-- Select Bus --</option>
-      </select>
+      <select id="routeSelect"><option value="">-- Select Route --</option></select>
+      <select id="busSelect"><option value="">-- Select Bus --</option></select>
       <button id="showBus">Show Bus on Map</button>
     </div>
 
@@ -45,9 +41,7 @@
 
     <div class="complaint-box">
       <h3>Raise a Complaint</h3>
-      <select id="complaintBus">
-        <option value="">-- Select Bus --</option>
-      </select>
+      <select id="complaintBus"><option value="">-- Select Bus --</option></select>
       <input type="text" id="userName" placeholder="Your Name">
       <input type="email" id="userEmail" placeholder="Your Email">
       <textarea id="userMessage" placeholder="Enter your complaint"></textarea>
@@ -55,115 +49,95 @@
     </div>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module">
-    import { db, ref, get, onValue, push, set, auth, signOut } from "../firebase-config.js";
+    import { db, ref, get, onValue, push, set, auth, signOut, onAuthStateChanged } from "../firebase-config.js";
 
-    let map;
-    let marker;
-
-    // Logout
-    window.logout = async () => { await signOut(auth); window.location.href = './login.html'; }
-
-    // Initialize Google Map
-    function initMap() {
-      map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 11.1271, lng: 78.6569 },
-        zoom: 7
-      });
-    }
-
-    // Load Google Maps
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyBWoaMvAmBX_Ha4Vi-4UDsQmm0WQ1Y9hek&callback=initMap`;
-    script.async = true;
-    document.head.appendChild(script);
+    const logoutBtn = document.getElementById('logoutBtn');
+    logoutBtn.addEventListener('click', async () => { await signOut(auth); window.location.href='./login.html'; });
 
     const routeSelect = document.getElementById("routeSelect");
     const busSelect = document.getElementById("busSelect");
     const complaintBus = document.getElementById("complaintBus");
     const showBusBtn = document.getElementById("showBus");
 
-    // 1️⃣ Load available routes
-    onValue(ref(db, "routes"), snapshot => {
+    // Leaflet map
+    const map = L.map('map').setView([11.1271,78.6569],7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(map);
+    let marker;
+
+    // Load routes dynamically from assignedDrivers
+    onValue(ref(db, "assignedDrivers"), snapshot => {
       const data = snapshot.val();
+      const routesSet = new Set();
+      if(data) Object.values(data).forEach(d => { if(d.route) routesSet.add(d.route); });
       routeSelect.innerHTML = `<option value="">-- Select Route --</option>`;
-      if(data) {
-        Object.keys(data).forEach(route => {
-          const opt = document.createElement("option");
-          opt.value = route;
-          opt.textContent = route;
-          routeSelect.appendChild(opt);
-        });
-      }
+      routesSet.forEach(route => { const opt = document.createElement('option'); opt.value=route; opt.textContent=route; routeSelect.appendChild(opt); });
     });
 
-    // 2️⃣ When route is selected, load buses
+    // Load buses for selected route
     routeSelect.addEventListener("change", async () => {
       const route = routeSelect.value;
-      busSelect.innerHTML = `<option value="">-- Select Bus --</option>`;
-      complaintBus.innerHTML = `<option value="">-- Select Bus --</option>`;
+      busSelect.innerHTML=`<option value="">-- Select Bus --</option>`;
+      complaintBus.innerHTML=`<option value="">-- Select Bus --</option>`;
       if(!route) return;
 
-      const snap = await get(ref(db, `routes/${route}`));
-      if(snap.exists()) {
-        const buses = snap.val();
-        Object.values(buses).forEach(bus => {
-          const opt = document.createElement("option");
-          opt.value = bus.busNumber;
-          opt.textContent = `Bus: ${bus.busNumber} | Driver: ${bus.driverEmail}`;
-          busSelect.appendChild(opt);
+      const snap = await get(ref(db,"assignedDrivers"));
+      if(snap.exists()){
+        const drivers = snap.val();
+        Object.values(drivers).forEach(driver=>{
+          if(driver.route===route){
+            const opt = document.createElement("option");
+            opt.value=driver.busNo;
+            opt.textContent=`Bus: ${driver.busNo} | Driver: ${driver.driverEmail || 'N/A'}`;
+            busSelect.appendChild(opt);
 
-          const copt = document.createElement("option");
-          copt.value = bus.busNumber;
-          copt.textContent = bus.busNumber;
-          complaintBus.appendChild(copt);
+            const copt=document.createElement("option");
+            copt.value=driver.busNo;
+            copt.textContent=driver.busNo;
+            complaintBus.appendChild(copt);
+          }
         });
       }
     });
 
-    // 3️⃣ Show bus location on map
+    // Show bus location
     showBusBtn.addEventListener("click", () => {
       const busNo = busSelect.value;
       if(!busNo){ alert("Select a bus"); return; }
 
-      // Listen for driversLocation
-      onValue(ref(db, "driversLocation"), snapshot => {
+      onValue(ref(db,"driversLocation"), snapshot => {
         const data = snapshot.val();
         if(!data) return;
-        const loc = Object.values(data).find(d => d.busId === busNo);
-        if(!loc) { alert("Bus location not found yet"); return; }
+        const loc = Object.values(data).find(d=>d.busId===busNo);
+        if(!loc){ alert("Bus location not available"); return; }
 
-        const pos = { lat: loc.lat, lng: loc.lng };
-        if(!marker) marker = new google.maps.Marker({ position: pos, map, title: `Bus ${busNo}` });
-        else marker.setPosition(pos);
-        map.setCenter(pos);
-        map.setZoom(14);
+        const pos = [loc.lat, loc.lng];
+        if(!marker) marker=L.marker(pos).addTo(map).bindPopup(`Bus: ${busNo}`);
+        else marker.setLatLng(pos);
+        map.setView(pos,14);
       });
     });
 
-    // 4️⃣ Submit complaint
-    document.getElementById("submitComplaint").addEventListener("click", async () => {
-      const userName = document.getElementById("userName").value.trim();
-      const userEmail = document.getElementById("userEmail").value.trim();
-      const busId = complaintBus.value;
-      const message = document.getElementById("userMessage").value.trim();
+    // Submit complaint
+    document.getElementById("submitComplaint").addEventListener("click", async ()=>{
+      const name=document.getElementById("userName").value.trim();
+      const email=document.getElementById("userEmail").value.trim();
+      const bus=complaintBus.value;
+      const msg=document.getElementById("userMessage").value.trim();
+      if(!name||!email||!bus||!msg){ alert("Fill all fields"); return; }
 
-      if(!userName || !userEmail || !busId || !message) { alert("Fill all fields"); return; }
-
-      const complaintRef = push(ref(db, "complaints"));
-      await set(complaintRef, { userName, userEmail, busId, message, timestamp: new Date().toISOString() });
-
+      const cRef=push(ref(db,"complaints"));
+      await set(cRef,{userName:name,userEmail:email,busId:bus,message:msg,timestamp:new Date().toISOString()});
       alert("Complaint submitted successfully!");
-      document.getElementById("userName").value = "";
-      document.getElementById("userEmail").value = "";
-      document.getElementById("userMessage").value = "";
-      complaintBus.value = "";
+      document.getElementById("userName").value="";
+      document.getElementById("userEmail").value="";
+      document.getElementById("userMessage").value="";
+      complaintBus.value="";
     });
 
-    // Optional: check auth
-    import { onAuthStateChanged } from "../firebase-config.js";
-    onAuthStateChanged(auth, user => { if(!user) window.location.href = './login.html'; });
-
+    // Auth check
+    onAuthStateChanged(auth,user=>{if(!user) window.location.href='./login.html';});
   </script>
 </body>
 </html>
