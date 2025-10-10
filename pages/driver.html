@@ -55,64 +55,49 @@ const status = document.getElementById('status');
 const busInfo = document.getElementById('busInfo');
 const btnShare = document.getElementById('btnShare');
 
-// Logout
+// ✅ Logout
 document.getElementById('btnLogout').addEventListener('click', async () => {
-  await signOut(auth);
-  window.location.href = 'login.html';
+  try {
+    await signOut(auth);
+    window.location.href = './login.html';
+  } catch (err) {
+    console.error('Logout failed:', err);
+  }
 });
 
-// Check auth user
+// ✅ Check auth user
 onAuthStateChanged(auth, async (user) => {
-  if(!user) return window.location.href = 'login.html';
+  if(!user) return window.location.href = './login.html';
   const emailKey = keyFromEmail(user.email);
-  const snap = await get(ref(db, `users/${emailKey}`));
-  if(!snap.exists()){ busInfo.textContent='No user found.'; return; }
 
-  const userData = snap.val();
-  if(userData.role !== 'driver'){ 
-    busInfo.textContent='Access denied (not a driver).';
+  const assignedSnap = await get(ref(db, `assignedDrivers/${emailKey}`));
+  if(!assignedSnap.exists()){
+    busInfo.textContent='No bus assigned yet.';
     return;
   }
 
-  const busId = userData.assignedBus || 'Not assigned';
-  const route = userData.assignedRoute || 'Not assigned';
-  busInfo.textContent = `Bus ID: ${busId}, Route: ${route}`;
+  const assignedData = assignedSnap.val();
+  busInfo.textContent = `Bus: ${assignedData.busNo} | Route: ${assignedData.route}`;
 
-  // Share live location
+  // ✅ Share live location
   btnShare.addEventListener('click', ()=>{
     if(!navigator.geolocation){
-      status.textContent='Geolocation not supported.'; 
+      status.textContent='Geolocation not supported.';
       status.style.color='red';
       return;
     }
+
     status.textContent='Sharing live location...';
     status.style.color='#5D866C';
 
     navigator.geolocation.watchPosition(async pos=>{
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-      const data = {
-        lat, lng, 
-        busId: busId,
-        time: new Date().toLocaleTimeString()
-      };
-
-      // Update driver location
+      const data = { lat, lng, busId: assignedData.busNo, time: new Date().toLocaleTimeString() };
       await set(ref(db, `driversLocation/${emailKey}`), data);
 
-      // Also update route location automatically
-      if(route && busId){
-        await set(ref(db, `routes/${route}/${busId}`), {
-          busNumber: busId,
-          driverEmail: user.email,
-          latitude: lat,
-          longitude: lng,
-          lastUpdated: new Date().toLocaleTimeString()
-        });
-      }
-
       if(marker) marker.setLatLng([lat, lng]);
-      else marker = L.marker([lat, lng]).addTo(map).bindPopup(`Bus: ${busId}`);
+      else marker = L.marker([lat, lng]).addTo(map).bindPopup(`Bus: ${assignedData.busNo}`);
       map.setView([lat, lng], 14);
       status.textContent=`Location updated at ${data.time}`;
     }, err=>{

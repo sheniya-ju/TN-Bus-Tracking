@@ -63,25 +63,29 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
-import { db, ref, get, set, push, onValue, auth, signOut, onAuthStateChanged, keyFromEmail } from "./firebase-config.js";
+import { db, ref, set, onValue, auth, signOut, onAuthStateChanged, keyFromEmail } from "./firebase-config.js";
 
 // Initialize map
 const map = L.map('map').setView([11.1271,78.6569],7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(map);
 let markers = {};
 
-// Logout
+// ✅ Logout
 document.getElementById('btnLogout').addEventListener('click', async () => {
-  await signOut(auth);
-  window.location.href = 'login.html';
+  try {
+    await signOut(auth);
+    window.location.href = './login.html';
+  } catch (err) {
+    console.error('Logout failed:', err);
+  }
 });
 
-// Check auth
+// ✅ Check login
 onAuthStateChanged(auth, (user) => {
-  if(!user) window.location.href = 'login.html';
+  if(!user) window.location.href = './login.html';
 });
 
-// Assign bus to driver and automatically create route in DB
+// ✅ Assign bus
 document.getElementById('assignBus').addEventListener('click', async () => {
   const email = document.getElementById('driverEmail').value.trim().toLowerCase();
   const busNo = document.getElementById('busNo').value.trim();
@@ -95,24 +99,20 @@ document.getElementById('assignBus').addEventListener('click', async () => {
     return;
   }
 
-  // Assign driver info
-  await set(ref(db, `assignedDrivers/${keyFromEmail(email)}`), {
-    email, busNo, route, duration,
-    assignedOn: new Date().toLocaleString()
-  });
-
-  // Automatically create route entry
-  await set(ref(db, `routes/${route}/${busNo}`), {
-    busNumber: busNo,
-    driverEmail: email,
-    assignedAt: new Date().toLocaleString()
-  });
-
-  assignStatus.textContent = "Bus assigned successfully!";
-  assignStatus.style.color = "#5D866C";
+  try {
+    await set(ref(db, `assignedDrivers/${keyFromEmail(email)}`), {
+      email, busNo, route, duration,
+      assignedOn: new Date().toLocaleString()
+    });
+    assignStatus.textContent = "Bus assigned successfully!";
+    assignStatus.style.color = "#008000";
+  } catch(err) {
+    assignStatus.textContent = "Failed to assign bus: " + err.message;
+    assignStatus.style.color = "red";
+  }
 });
 
-// Listen to drivers’ live locations
+// ✅ Show live driver locations
 const driverList = document.getElementById('driverList');
 onValue(ref(db, "driversLocation"), (snapshot) => {
   const data = snapshot.val();
@@ -131,7 +131,7 @@ onValue(ref(db, "driversLocation"), (snapshot) => {
   });
 });
 
-// Show complaints
+// ✅ Display complaints
 const complaintsDiv = document.getElementById('complaints');
 onValue(ref(db, "complaints"), (snapshot) => {
   const data = snapshot.val();
@@ -141,7 +141,7 @@ onValue(ref(db, "complaints"), (snapshot) => {
   Object.values(data).forEach(c=>{
     const div = document.createElement('div');
     div.className = "complaint";
-    div.innerHTML = `<b>Bus:</b> ${c.busId}<br><b>Complaint:</b> ${c.complaint}<br><b>Time:</b> ${c.time}`;
+    div.innerHTML = `<b>Bus:</b> ${c.busId}<br><b>Complaint:</b> ${c.complaint}<br><b>User:</b> ${c.userEmail}<br><b>Time:</b> ${c.time}`;
     complaintsDiv.appendChild(div);
   });
 });
