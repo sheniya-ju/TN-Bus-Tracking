@@ -9,13 +9,13 @@ import {
 
 // Firebase config
 const firebaseConfig = {
-  apiKey: "AIzaSyBWoaMvAmBX_Ha4Vi-4UDsQmm0WQ1Y9hekgit",
+   apiKey: "AIzaSyBLSW2MSs9u7amgxiOUzLehjgUJMv_Ci4E",
   authDomain: "tn-bus-tracker-1b4d8.firebaseapp.com",
   databaseURL: "https://tn-bus-tracker-1b4d8-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "tn-bus-tracker-1b4d8",
-  storageBucket: "tn-bus-tracker-1b4d8.appspot.com",
-  messagingSenderId: "SENDER_ID",
-  appId: "APP_ID"
+  storageBucket: "tn-bus-tracker-1b4d8.firebasestorage.app",
+  messagingSenderId: "660182962689",
+  appId: "1:660182962689:web:f2f7ce8341984829f5660
 };
 
 const app = initializeApp(firebaseConfig);
