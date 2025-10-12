@@ -15,7 +15,7 @@ const firebaseConfig = {
   projectId: "tn-bus-tracker-1b4d8",
   storageBucket: "tn-bus-tracker-1b4d8.firebasestorage.app",
   messagingSenderId: "660182962689",
-  appId: "1:660182962689:web:f2f7ce8341984829f5660
+  appId:  "1:660182962689:web:f2f7ce8341984829f56600"
 };
 
 const app = initializeApp(firebaseConfig);
