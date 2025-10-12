@@ -45,49 +45,48 @@ button:hover { background:#5D866C; }
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
-import { db, ref, get, auth, onAuthStateChanged, signOut, keyFromEmail, set } from "./firebase.js";
+import { db, ref, get, auth, onAuthStateChanged, signOut, keyFromEmail, updateDriverLocation, isAssignmentActive } from "./firebase.js";
 
 const map = L.map('map').setView([11.1271,78.6569],7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(map);
-let marker;
+let marker = null;
+let watchId = null;
 
 const status = document.getElementById('status');
 const busInfo = document.getElementById('busInfo');
 const btnShare = document.getElementById('btnShare');
+const btnLogout = document.getElementById('btnLogout');
 
-document.getElementById('btnLogout').addEventListener('click', async () => {
-  await signOut(auth);
-  window.location.href = './login.html';
-});
+btnLogout.addEventListener('click', async ()=>{ await signOut(auth); window.location.href='./login.html'; });
 
+// Check Auth
 onAuthStateChanged(auth, async (user) => {
-  if(!user) return window.location.href = './login.html';
+  if(!user) return window.location.href='./login.html';
   const emailKey = keyFromEmail(user.email);
-
   const snap = await get(ref(db, `assignedDrivers/${emailKey}`));
-  if(!snap.exists()){
-    busInfo.textContent = 'No bus assigned yet.';
-    return;
-  }
+  if(!snap.exists()){ busInfo.textContent='No bus assigned yet.'; return; }
 
   const busData = snap.val();
-  busInfo.innerHTML = `<b>Bus:</b> ${busData.busNo} <br> <b>Route:</b> ${busData.route} <br> <b>Duration:</b> ${busData.duration}`;
+  if(!isAssignmentActive(busData.assignedAt, busData.durationDays)){
+    busInfo.textContent='No active assignment.'; return;
+  }
+
+  busInfo.innerHTML = `<b>Bus:</b> ${busData.busNo} <br> <b>Route:</b> ${busData.route} <br> <b>Assigned At:</b> ${new Date(busData.assignedAt).toLocaleString()} <br> <b>Duration:</b> ${busData.durationDays ? busData.durationDays+" day(s)" : "Permanent"}`;
 
   btnShare.addEventListener('click', () => {
     if(!navigator.geolocation){ status.textContent='Geolocation not supported.'; return; }
     status.textContent='Sharing live location...';
-    
-    navigator.geolocation.watchPosition(async pos => {
+    if(watchId) navigator.geolocation.clearWatch(watchId);
+
+    watchId = navigator.geolocation.watchPosition(async pos=>{
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-      const data = { lat, lng, busId: busData.busNo, route: busData.route, time: new Date().toLocaleTimeString() };
-      await set(ref(db, `driversLocation/${emailKey}`), data);
-
-      if(marker) marker.setLatLng([lat, lng]);
-      else marker = L.marker([lat, lng]).addTo(map).bindPopup(`Bus: ${busData.busNo}`);
-      map.setView([lat, lng], 14);
-      status.textContent=`Location updated at ${data.time}`;
-    }, err => { status.textContent='Unable to get location.'; });
+      await updateDriverLocation(user.email, lat, lng);
+      if(marker) marker.setLatLng([lat,lng]);
+      else marker = L.marker([lat,lng]).addTo(map).bindPopup(`Bus: ${busData.busNo}`);
+      map.setView([lat,lng],14);
+      status.textContent=`Location updated at ${new Date().toLocaleTimeString()}`;
+    }, err=>{ status.textContent='Unable to get location.'; });
   });
 });
 </script>

@@ -1,20 +1,11 @@
-// firebase-config.js
+// firebase.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
 import {
-  getDatabase,
-  ref,
-  set,
-  get,
-  onValue,
-  update,
-  push
+  getDatabase, ref, set, get, onValue, update, push, remove
 } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js";
 import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
 
 // Firebase Config
@@ -37,32 +28,28 @@ function keyFromEmail(email) {
   return email.replace(/\./g, "_");
 }
 
-// SESSION helper
-async function createSession(user) {
-  localStorage.setItem("userSession", JSON.stringify({ uid: user.uid, email: user.email }));
-}
-
-// ASSIGN DRIVER -> writes into assignedDrivers, drivers, users, and routes
-async function assignDriver(email, busId, route, duration) {
+// ASSIGN DRIVER -> writes into assignedDrivers, drivers, users, and routes with duration
+async function assignDriver(email, busId, route, durationDays = 1) {
   const driverKey = keyFromEmail(email);
+  const assignedAt = new Date().toISOString();
 
   await set(ref(db, `assignedDrivers/${driverKey}`), {
     busNo: busId,
     route: route,
-    duration: duration,
-    assignedAt: new Date().toISOString()
+    assignedAt,
+    durationDays: durationDays
   });
 
   await set(ref(db, `drivers/${driverKey}`), {
     busId,
     route,
-    assignedAt: new Date().toISOString(),
-    duration
+    assignedAt,
+    durationDays
   });
 
   await update(ref(db, `users/${driverKey}`), { assignedBus: busId, route });
 
-  // Add bus under route (dynamic)
+  // Add bus under route (static info)
   await set(ref(db, `routes/${route}/${busId}`), {
     busNumber: busId,
     driverEmail: email,
@@ -70,7 +57,7 @@ async function assignDriver(email, busId, route, duration) {
     longitude: 0
   });
 
-  return { ok: true, message: `Assigned ${busId} → ${email}` };
+  return { ok: true, message: `Assigned ${busId} → ${email} for ${durationDays} day(s)` };
 }
 
 // UPDATE DRIVER LOCATION
@@ -80,7 +67,6 @@ async function updateDriverLocation(email, lat, lng) {
   if (snap.exists()) {
     const busId = snap.val().busId;
     const route = snap.val().route || "unknown";
-
     await set(ref(db, `driversLocation/${driverKey}`), {
       lat, lng, busId, route, time: new Date().toLocaleTimeString()
     });
@@ -93,38 +79,28 @@ async function updateDriverLocation(email, lat, lng) {
 async function addComplaint(userName, userEmail, busId, message) {
   const complaintRef = push(ref(db, "complaints"));
   await set(complaintRef, {
-    userName,
-    userEmail,
-    busId,
-    message,
-    timestamp: new Date().toISOString()
+    userName, userEmail, busId, message, timestamp: new Date().toISOString()
   });
 }
 
 // LOGOUT helper
 async function logoutUser() {
   await signOut(auth);
-  localStorage.removeItem("userSession");
   window.location.href = "../index.html";
 }
 
+// CHECK if assignment active based on duration
+function isAssignmentActive(assignedAt, durationDays) {
+  if (!durationDays) return true; // permanent
+  const assignedTime = new Date(assignedAt).getTime();
+  const now = new Date().getTime();
+  const expiryTime = assignedTime + durationDays * 24 * 60 * 60 * 1000;
+  return now <= expiryTime;
+}
+
 export {
-  db,
-  ref,
-  set,
-  get,
-  onValue,
-  update,
-  push,
-  auth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  keyFromEmail,
-  createSession,
-  assignDriver,
-  updateDriverLocation,
-  addComplaint,
-  logoutUser
+  db, ref, set, get, onValue, update, push, remove,
+  auth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  signOut, onAuthStateChanged, keyFromEmail, assignDriver,
+  updateDriverLocation, addComplaint, logoutUser, isAssignmentActive
 };
