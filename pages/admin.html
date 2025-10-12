@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Panel | TN Bus Tracker</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.5/dist/leaflet.css"/>
 <style>
 body { font-family:"Poppins", sans-serif; background:#F5F5F0; margin:0; padding:0; }
 .topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#5D866C; color:white; font-size:1.2rem; font-weight:bold; }
@@ -18,6 +19,7 @@ body { font-family:"Poppins", sans-serif; background:#F5F5F0; margin:0; padding:
 .assign-box button:hover { background:#C2A68C; }
 .assigned-list, .complaint-list { max-height:200px; overflow-y:auto; margin-top:10px; }
 .assigned-item, .complaint-item { padding:8px; border-bottom:1px solid #C2A68C; }
+#map { height: 250px; margin-top:10px; border-radius:8px; }
 </style>
 </head>
 <body>
@@ -42,21 +44,18 @@ body { font-family:"Poppins", sans-serif; background:#F5F5F0; margin:0; padding:
 
   <div class="assigned-box">
     <h3>Assigned Buses</h3>
-    <div class="assigned-list" id="assignedList">
-      Loading...
-    </div>
+    <div class="assigned-list" id="assignedList">Loading...</div>
+    <div id="map"></div>
   </div>
 
   <div class="complaint-box">
     <h3>User Complaints</h3>
-    <div class="complaint-list" id="complaintList">
-      Loading...
-    </div>
+    <div class="complaint-list" id="complaintList">Loading...</div>
   </div>
 </div>
 
 <script type="module">
-import { db, ref, set, get, onValue, update, keyFromEmail, assignDriver, auth, signOut } from "../firebase.js";
+import { db, ref, get, onValue, assignDriver, auth, signOut } from "../firebase.js";
 
 // Logout
 document.getElementById('btnLogout').addEventListener('click', async ()=>{
@@ -74,7 +73,6 @@ document.getElementById('assignBtn').addEventListener('click', async ()=>{
   if(!email||!busNo||!route){ statusEl.textContent="Fill all fields!"; statusEl.style.color="red"; return; }
 
   const durationDays = duration ? parseInt(duration) : 'permanent';
-
   try {
     await assignDriver(email,busNo,route,durationDays);
     statusEl.textContent=`Assigned ${busNo} to ${email} for ${durationDays} day(s)`;
@@ -90,19 +88,38 @@ document.getElementById('assignBtn').addEventListener('click', async ()=>{
 });
 
 // Load assigned buses
+let map, markers = [];
 async function loadAssignedBuses(){
   const listEl=document.getElementById('assignedList');
   const snap=await get(ref(db,'assignedDrivers'));
   listEl.innerHTML='';
   if(!snap.exists()){ listEl.textContent='No assignments yet.'; return; }
+
   const data=snap.val();
+  // Initialize Leaflet map
+  if(!map){
+    map = L.map('map').setView([11.1271, 78.6569], 7); // Tamil Nadu center
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'&copy; OpenStreetMap contributors'
+    }).addTo(map);
+  }
+  // Remove old markers
+  markers.forEach(m=>map.removeLayer(m));
+  markers=[];
+
   Object.entries(data).forEach(([key,value])=>{
-    let assignedAt = value.assignedAt || '';
+    let assignedAt = new Date(value.assignedAt).toLocaleString();
     let duration = value.durationDays || 'permanent';
     const div=document.createElement('div');
     div.className='assigned-item';
     div.textContent=`Driver: ${key.replace(/_/g,'.')} | Bus: ${value.busNo} | Route: ${value.route} | Assigned at: ${assignedAt} | Duration: ${duration} day(s)`;
     listEl.appendChild(div);
+
+    // Add marker if location exists
+    if(value.lat && value.lng){
+      const m = L.marker([value.lat,value.lng]).addTo(map).bindPopup(`${value.busNo} | ${value.route}`);
+      markers.push(m);
+    }
   });
 }
 
@@ -116,7 +133,7 @@ async function loadComplaints(){
   Object.values(data).forEach(c=>{
     const div=document.createElement('div');
     div.className='complaint-item';
-    div.textContent=`Bus: ${c.busId} | Name: ${c.userName} | Email: ${c.userEmail} | Message: ${c.message}`;
+    div.textContent=`Bus: ${c.busId || '-'} | Name: ${c.userName} | Email: ${c.userEmail} | Message: ${c.message}`;
     listEl.appendChild(div);
   });
 }
@@ -124,7 +141,10 @@ async function loadComplaints(){
 // Initial load
 loadAssignedBuses();
 loadComplaints();
-</script>
 
+// Optional: Refresh every 30s
+setInterval(()=>{ loadAssignedBuses(); loadComplaints(); },30000);
+</script>
+<script src="https://unpkg.com/leaflet@1.9.5/dist/leaflet.js"></script>
 </body>
 </html>

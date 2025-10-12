@@ -57,24 +57,32 @@ document.getElementById('btnLogout').addEventListener('click', async () => {
   window.location.href = '../index.html';
 });
 
-// Show all assigned buses
+// Auth check
+onAuthStateChanged(auth, user => {
+  if(!user) window.location.href='./login.html';
+});
+
+// Load buses and live locations
 function loadBuses() {
   onValue(ref(db, 'assignedDrivers'), snapshot => {
     const data = snapshot.val();
     if(!data) return;
-    
+
     Object.entries(data).forEach(([driverKey, busData]) => {
+      const busNo = busData.busNo;
+      const route = busData.route;
+
       // Listen to driver location
       onValue(ref(db, `driversLocation/${driverKey}`), locSnap => {
         const loc = locSnap.val();
         if(!loc) return;
 
         const latLng = [loc.lat, loc.lng];
-        if(markers[busData.busNo]) {
-          markers[busData.busNo].setLatLng(latLng);
+        if(markers[busNo]) {
+          markers[busNo].setLatLng(latLng);
         } else {
-          markers[busData.busNo] = L.marker(latLng).addTo(map)
-            .bindPopup(`<b>Bus:</b> ${busData.busNo}<br><b>Route:</b> ${busData.route}`);
+          markers[busNo] = L.marker(latLng).addTo(map)
+            .bindPopup(`<b>Bus:</b> ${busNo}<br><b>Route:</b> ${route}`);
         }
       });
     });
@@ -99,11 +107,6 @@ document.getElementById('submitComplaint').addEventListener('click', async () =>
   document.getElementById('userEmail').value = '';
   document.getElementById('busId').value = '';
   document.getElementById('userMessage').value = '';
-});
-
-// Auth check
-onAuthStateChanged(auth, user => {
-  if(!user) window.location.href='./login.html';
 });
 </script>
 </body>

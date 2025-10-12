@@ -5,6 +5,7 @@
 <title>Driver Panel — TN Bus Tracker</title>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <link rel="stylesheet" href="../style.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 html, body { height:100%; margin:0; font-family:Arial,sans-serif; background:#F5F5F0; color:#5D866C; }
 .topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#5D866C; color:#F5F5F0; font-weight:bold; font-size:18px; }
@@ -44,52 +45,63 @@ button:hover { background:#5D866C; }
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
-import { db, ref, get, auth, onAuthStateChanged, signOut, set } from "./firebase.js";
+import { db, ref, get, auth, onAuthStateChanged, signOut, set } from "../firebase.js";
 
-const map = L.map('map').setView([11.1271,78.6569],7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(map);
-let marker;
+const map = L.map('map').setView([11.1271,78.6569], 7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
 
 const status = document.getElementById('status');
 const busInfo = document.getElementById('busInfo');
 const btnShare = document.getElementById('btnShare');
+let marker;
 
+// Logout
 document.getElementById('btnLogout').addEventListener('click', async () => {
   await signOut(auth);
   window.location.href = '../index.html';
 });
 
-onAuthStateChanged(auth, async (user) => {
+// Auth check and load assignment
+onAuthStateChanged(auth, async user => {
   if(!user) return window.location.href = './login.html';
+
   const emailKey = user.email.replace(/\./g,"_");
 
   const snap = await get(ref(db, `assignedDrivers/${emailKey}`));
-  if(!snap.exists()){ busInfo.textContent='No bus assigned yet.'; return; }
+  if(!snap.exists()) {
+    busInfo.textContent='No bus assigned yet.';
+    return;
+  }
 
   const busData = snap.val();
 
-  // Check if assignment expired
-  if(busData.assignedAt && busData.duration && busData.duration< Date.now()){ 
-    busInfo.textContent='Assignment expired.'; 
-    return; 
+  // Handle expiry
+  const now = Date.now();
+  if(busData.expiry && busData.expiry < now) {
+    busInfo.textContent='Assignment expired.';
+    return;
   }
 
-  busInfo.innerHTML = `<b>Bus:</b> ${busData.busNo}<br><b>Route:</b> ${busData.route}<br><b>Duration:</b> ${busData.duration? busData.duration+" ms":"Permanent"}`;
+  busInfo.innerHTML = `<b>Bus:</b> ${busData.busNo}<br><b>Route:</b> ${busData.route}<br><b>Duration:</b> ${busData.durationDays || 'Permanent'}`;
 
+  // Share live location
   btnShare.addEventListener('click', () => {
-    if(!navigator.geolocation){ status.textContent='Geolocation not supported.'; return; }
+    if(!navigator.geolocation){
+      status.textContent='Geolocation not supported.';
+      return;
+    }
+
     status.textContent='Sharing live location...';
-    
     navigator.geolocation.watchPosition(async pos => {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-      const data = { lat, lng, busId: busData.busNo, route: busData.route, time: new Date().toLocaleTimeString() };
+      const data = { lat, lng, busId: busData.busNo, route: busData.route, time: new Date().toISOString() };
       await set(ref(db, `driversLocation/${emailKey}`), data);
 
       if(marker) marker.setLatLng([lat, lng]);
       else marker = L.marker([lat, lng]).addTo(map).bindPopup(`Bus: ${busData.busNo}`);
       map.setView([lat, lng], 14);
-      status.textContent=`Location updated at ${data.time}`;
+      status.textContent=`Location updated at ${new Date().toLocaleTimeString()}`;
     }, err => { status.textContent='Unable to get location.'; });
   });
 });
