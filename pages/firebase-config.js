@@ -53,15 +53,17 @@ async function assignDriver(driverEmail, busNo, route, durationDays=null){
   const key = keyFromEmail(driverEmail);
   let expiry = null;
 
+  // Handle duration
   if(durationDays && durationDays !== 'permanent'){
     expiry = Date.now() + durationDays*24*60*60*1000; // duration in ms
   }
+  durationDays = durationDays || 'permanent';
 
   const data = {
     busNo,
     route,
     assignedAt: Date.now(),
-    durationDays: durationDays || 'permanent',
+    durationDays,
     expiry
   };
 
@@ -69,8 +71,12 @@ async function assignDriver(driverEmail, busNo, route, durationDays=null){
   await set(ref(db, `assignedDrivers/${key}`), data);
   await set(ref(db, `drivers/${key}`), data);
 
-  // Update user profile
-  await update(ref(db, `users/${key}`), { assignedBus: busNo, route });
+  // Update user profile if exists
+  try {
+    await update(ref(db, `users/${key}`), { assignedBus: busNo, route });
+  } catch(e){
+    console.log("User not found, skipping user update");
+  }
 
   // Add bus under route reference
   await set(ref(db, `routes/${route}/${busNo}`), {
@@ -80,7 +86,7 @@ async function assignDriver(driverEmail, busNo, route, durationDays=null){
     longitude: 0
   });
 
-  return { ok:true, message:`Assigned ${busNo} to ${driverEmail}` };
+  return { ok:true, message:`Assigned ${busNo} to ${driverEmail} successfully!` };
 }
 
 // ===== Driver: Update Live Location =====
@@ -93,6 +99,9 @@ async function updateDriverLocation(driverEmail, busId, route, lat, lng){
     lng,
     time: new Date().toISOString()
   });
+
+  // Update route's bus coordinates too
+  await update(ref(db, `routes/${route}/${busId}`), { latitude: lat, longitude: lng });
 }
 
 // ===== User: Submit Complaint =====
@@ -108,20 +117,23 @@ async function submitComplaint(userName, userEmail, busId, message){
 }
 
 // ===== Remove Expired Assignments =====
-function removeExpiredAssignments(){
-  onValue(ref(db, "assignedDrivers"), snapshot => {
-    const data = snapshot.val();
-    if(!data) return;
+async function removeExpiredAssignments(){
+  const snap = await get(ref(db, "assignedDrivers"));
+  const data = snap.val();
+  if(!data) return;
 
-    Object.entries(data).forEach(([key, val])=>{
-      if(val.expiry && val.expiry < Date.now()){
-        remove(ref(db, `assignedDrivers/${key}`));
-        remove(ref(db, `driversLocation/${key}`));
-      }
-    });
-  });
+  for(const [key, val] of Object.entries(data)){
+    if(val.expiry && val.expiry < Date.now()){
+      console.log("Removing expired assignment:", key, val.busNo);
+      await remove(ref(db, `assignedDrivers/${key}`));
+      await remove(ref(db, `driversLocation/${key}`));
+      await remove(ref(db, `drivers/${key}`));
+    }
+  }
 }
 
+// Call once on startup
+removeExpiredAssignments();
 // Auto cleanup every 5 minutes
 setInterval(removeExpiredAssignments, 5*60*1000);
 

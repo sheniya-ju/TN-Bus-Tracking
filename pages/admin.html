@@ -55,7 +55,7 @@ body { font-family:"Poppins", sans-serif; background:#F5F5F0; margin:0; padding:
 </div>
 
 <script type="module">
-import { db, ref, get, onValue, assignDriver, auth, signOut } from "../firebase.js";
+import { db, ref, get, assignDriver, auth, signOut } from "../firebase.js";
 
 // Logout
 document.getElementById('btnLogout').addEventListener('click', async ()=>{
@@ -63,59 +63,71 @@ document.getElementById('btnLogout').addEventListener('click', async ()=>{
   window.location.href='../index.html';
 });
 
-// Assign driver
+// Assign driver with proper success message
 document.getElementById('assignBtn').addEventListener('click', async ()=>{
-  const email=document.getElementById('driverEmail').value.trim();
-  const busNo=document.getElementById('busNo').value.trim();
-  const route=document.getElementById('route').value.trim();
-  const duration=document.getElementById('duration').value.trim();
-  const statusEl=document.getElementById('assignStatus');
-  if(!email||!busNo||!route){ statusEl.textContent="Fill all fields!"; statusEl.style.color="red"; return; }
+  const email = document.getElementById('driverEmail').value.trim();
+  const busNo = document.getElementById('busNo').value.trim();
+  const route = document.getElementById('route').value.trim();
+  const duration = document.getElementById('duration').value.trim();
+  const statusEl = document.getElementById('assignStatus');
+
+  if(!email || !busNo || !route){
+    statusEl.textContent = "❌ Fill all fields!";
+    statusEl.style.color = "red";
+    return;
+  }
 
   const durationDays = duration ? parseInt(duration) : 'permanent';
-  try {
-    await assignDriver(email,busNo,route,durationDays);
-    statusEl.textContent=`Assigned ${busNo} to ${email} for ${durationDays} day(s)`;
-    statusEl.style.color="green";
+
+  try{
+    await assignDriver(email, busNo, route, durationDays);
+    statusEl.textContent = `✅ Bus ${busNo} assigned successfully to ${email} for ${durationDays} day(s)`;
+    statusEl.style.color = "green";
+
+    // Clear input fields
     document.getElementById('driverEmail').value="";
     document.getElementById('busNo').value="";
     document.getElementById('route').value="";
     document.getElementById('duration').value="";
-    loadAssignedBuses();
+
+    await loadAssignedBuses();
   } catch(err){
-    statusEl.textContent=err.message; statusEl.style.color="red";
+    statusEl.textContent = `❌ Error: ${err.message}`;
+    statusEl.style.color = "red";
   }
 });
 
-// Load assigned buses
+// Load assigned buses with Leaflet markers
 let map, markers = [];
 async function loadAssignedBuses(){
-  const listEl=document.getElementById('assignedList');
-  const snap=await get(ref(db,'assignedDrivers'));
-  listEl.innerHTML='';
+  const listEl = document.getElementById('assignedList');
+  const snap = await get(ref(db,'assignedDrivers'));
+  listEl.innerHTML = '';
   if(!snap.exists()){ listEl.textContent='No assignments yet.'; return; }
 
-  const data=snap.val();
-  // Initialize Leaflet map
+  const data = snap.val();
+
+  // Initialize map if not already
   if(!map){
-    map = L.map('map').setView([11.1271, 78.6569], 7); // Tamil Nadu center
+    map = L.map('map').setView([11.1271, 78.6569], 7);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
       attribution:'&copy; OpenStreetMap contributors'
     }).addTo(map);
   }
+
   // Remove old markers
-  markers.forEach(m=>map.removeLayer(m));
-  markers=[];
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
 
   Object.entries(data).forEach(([key,value])=>{
     let assignedAt = new Date(value.assignedAt).toLocaleString();
     let duration = value.durationDays || 'permanent';
-    const div=document.createElement('div');
-    div.className='assigned-item';
-    div.textContent=`Driver: ${key.replace(/_/g,'.')} | Bus: ${value.busNo} | Route: ${value.route} | Assigned at: ${assignedAt} | Duration: ${duration} day(s)`;
+    const div = document.createElement('div');
+    div.className = 'assigned-item';
+    div.textContent = `Driver: ${key.replace(/_/g,'.')} | Bus: ${value.busNo} | Route: ${value.route} | Assigned at: ${assignedAt} | Duration: ${duration} day(s)`;
     listEl.appendChild(div);
 
-    // Add marker if location exists
+    // Add marker if driver location exists
     if(value.lat && value.lng){
       const m = L.marker([value.lat,value.lng]).addTo(map).bindPopup(`${value.busNo} | ${value.route}`);
       markers.push(m);
@@ -125,15 +137,15 @@ async function loadAssignedBuses(){
 
 // Load complaints
 async function loadComplaints(){
-  const listEl=document.getElementById('complaintList');
-  const snap=await get(ref(db,'complaints'));
-  listEl.innerHTML='';
+  const listEl = document.getElementById('complaintList');
+  const snap = await get(ref(db,'complaints'));
+  listEl.innerHTML = '';
   if(!snap.exists()){ listEl.textContent='No complaints yet.'; return; }
-  const data=snap.val();
+  const data = snap.val();
   Object.values(data).forEach(c=>{
-    const div=document.createElement('div');
-    div.className='complaint-item';
-    div.textContent=`Bus: ${c.busId || '-'} | Name: ${c.userName} | Email: ${c.userEmail} | Message: ${c.message}`;
+    const div = document.createElement('div');
+    div.className = 'complaint-item';
+    div.textContent = `Bus: ${c.busId || '-'} | Name: ${c.userName} | Email: ${c.userEmail} | Message: ${c.message}`;
     listEl.appendChild(div);
   });
 }
@@ -142,8 +154,8 @@ async function loadComplaints(){
 loadAssignedBuses();
 loadComplaints();
 
-// Optional: Refresh every 30s
-setInterval(()=>{ loadAssignedBuses(); loadComplaints(); },30000);
+// Refresh every 30s
+setInterval(()=>{ loadAssignedBuses(); loadComplaints(); }, 30000);
 </script>
 <script src="https://unpkg.com/leaflet@1.9.5/dist/leaflet.js"></script>
 </body>
