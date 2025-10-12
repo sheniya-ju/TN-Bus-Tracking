@@ -5,16 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>User Panel | TN Bus Tracker</title>
 <link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-html, body { height:100%; margin:0; font-family:Arial,sans-serif; background:#F5F5F0; color:#5D866C; }
-.header { background:#5D866C; color:white; padding:15px; text-align:center; position:sticky; top:0; font-size:1.5rem; }
-.logout-btn { position:absolute; top:10px; right:20px; background:#C2A68C; color:white; border:none; padding:6px 12px; border-radius:5px; cursor:pointer; }
+body { font-family: Arial, sans-serif; background:#F5F5F0; margin:0; padding:0; }
+.header { display:flex; justify-content:space-between; align-items:center; background:#5D866C; color:white; padding:12px 20px; position:sticky; top:0; }
+.header .logo { display:flex; align-items:center; gap:10px; font-size:1.3rem; font-weight:bold; }
+.header .logo img { height:40px; border-radius:6px; }
+.logout-btn { background:#C2A68C; color:white; border:none; padding:6px 12px; border-radius:5px; cursor:pointer; }
 .logout-btn:hover { background:#E6D8C3; color:#5D866C; }
-.container { padding:20px; display:flex; flex-direction:column; gap:20px; }
-.mapwrap { height:400px; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-.bus-list { background:#E6D8C3; padding:15px; border-radius:12px; max-height:200px; overflow-y:auto; }
-.bus-list p { margin:6px 0; }
-.complaint-box { background:#E6D8C3; padding:15px; border-radius:12px; }
+.container { padding:20px; display:flex; flex-direction:column; gap:30px; }
+#map { height:400px; width:100%; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+.complaint-box { background:#E6D8C3; padding:15px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
 input, textarea, button { width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #C2A68C; box-sizing:border-box; }
 button { background:#5D866C; color:#F5F5F0; font-weight:bold; border:none; cursor:pointer; transition:0.2s; }
 button:hover { background:#C2A68C; color:#5D866C; }
@@ -22,22 +23,20 @@ button:hover { background:#C2A68C; color:#5D866C; }
 </head>
 <body>
 <div class="header">
-  User Panel
+  <div class="logo">
+    <img src="../image.jpeg" alt="TN Bus Tracker Logo"> User Panel
+  </div>
   <button class="logout-btn" id="btnLogout">Logout</button>
 </div>
 
 <div class="container">
-  <div class="bus-list" id="busList">
-    <h3>Assigned Buses</h3>
-    <p>Loading buses...</p>
-  </div>
-
-  <div class="mapwrap" id="map"></div>
+  <div id="map"></div>
 
   <div class="complaint-box">
     <h3>Raise a Complaint</h3>
     <input type="text" id="userName" placeholder="Your Name">
     <input type="email" id="userEmail" placeholder="Your Email">
+    <input type="text" id="busId" placeholder="Bus Number">
     <textarea id="userMessage" placeholder="Enter your complaint"></textarea>
     <button id="submitComplaint">Submit Complaint</button>
   </div>
@@ -47,59 +46,64 @@ button:hover { background:#C2A68C; color:#5D866C; }
 <script type="module">
 import { db, ref, onValue, push, set, auth, signOut, onAuthStateChanged } from "../firebase.js";
 
-const btnLogout = document.getElementById('btnLogout');
-btnLogout.addEventListener('click', async ()=>{ await signOut(auth); window.location.href='./login.html'; });
+let map = L.map('map').setView([11.1271,78.6569], 7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-onAuthStateChanged(auth, user => { if(!user) window.location.href='./login.html'; });
+const markers = {};
 
-// Map
-const map = L.map('map').setView([11.1271,78.6569],7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);
-const busMarkers = {};
-
-// Display assigned buses
-const busList = document.getElementById('busList');
-onValue(ref(db, "assignedDrivers"), snapshot => {
-  busList.innerHTML = "<h3>Assigned Buses</h3>";
-  const data = snapshot.val();
-  if(!data){ busList.innerHTML += "<p>No buses assigned</p>"; return; }
-
-  Object.values(data).forEach(bus=>{
-    const busP = document.createElement("p");
-    busP.textContent = `Bus: ${bus.busNo}, Route: ${bus.route}`;
-    busList.appendChild(busP);
-  });
+// Logout
+document.getElementById('btnLogout').addEventListener('click', async () => {
+  await signOut(auth);
+  window.location.href = '../index.html';
 });
 
-// Show bus locations live
-onValue(ref(db, "driversLocation"), snapshot => {
-  const data = snapshot.val();
-  if(!data) return;
+// Show all assigned buses
+function loadBuses() {
+  onValue(ref(db, 'assignedDrivers'), snapshot => {
+    const data = snapshot.val();
+    if(!data) return;
+    
+    Object.entries(data).forEach(([driverKey, busData]) => {
+      // Listen to driver location
+      onValue(ref(db, `driversLocation/${driverKey}`), locSnap => {
+        const loc = locSnap.val();
+        if(!loc) return;
 
-  Object.values(data).forEach(bus=>{
-    if(busMarkers[bus.busId]){
-      busMarkers[bus.busId].setLatLng([bus.lat, bus.lng]);
-    } else {
-      const m = L.marker([bus.lat, bus.lng]).addTo(map).bindPopup(`Bus: ${bus.busId}<br>Route: ${bus.route}`);
-      busMarkers[bus.busId] = m;
-    }
+        const latLng = [loc.lat, loc.lng];
+        if(markers[busData.busNo]) {
+          markers[busData.busNo].setLatLng(latLng);
+        } else {
+          markers[busData.busNo] = L.marker(latLng).addTo(map)
+            .bindPopup(`<b>Bus:</b> ${busData.busNo}<br><b>Route:</b> ${busData.route}`);
+        }
+      });
+    });
   });
-});
+}
+loadBuses();
 
 // Submit complaint
-document.getElementById("submitComplaint").addEventListener("click", async ()=>{
-  const name = document.getElementById("userName").value.trim();
-  const email = document.getElementById("userEmail").value.trim();
-  const message = document.getElementById("userMessage").value.trim();
-  if(!name || !email || !message){ alert("Fill all fields"); return; }
+document.getElementById('submitComplaint').addEventListener('click', async () => {
+  const userName = document.getElementById('userName').value.trim();
+  const userEmail = document.getElementById('userEmail').value.trim();
+  const busId = document.getElementById('busId').value.trim();
+  const message = document.getElementById('userMessage').value.trim();
 
-  const complaintRef = push(ref(db,"complaints"));
-  await set(complaintRef, { userName: name, userEmail: email, message, timestamp: new Date().toISOString() });
+  if(!userName || !userEmail || !busId || !message) { alert('Fill all fields'); return; }
 
-  alert("Complaint submitted successfully!");
-  document.getElementById("userName").value = "";
-  document.getElementById("userEmail").value = "";
-  document.getElementById("userMessage").value = "";
+  const complaintRef = push(ref(db, 'complaints'));
+  await set(complaintRef, { userName, userEmail, busId, message, timestamp: new Date().toISOString() });
+
+  alert('Complaint submitted successfully!');
+  document.getElementById('userName').value = '';
+  document.getElementById('userEmail').value = '';
+  document.getElementById('busId').value = '';
+  document.getElementById('userMessage').value = '';
+});
+
+// Auth check
+onAuthStateChanged(auth, user => {
+  if(!user) window.location.href='./login.html';
 });
 </script>
 </body>

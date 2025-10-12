@@ -1,106 +1,118 @@
 // firebase.js
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.0/firebase-app.js";
-import {
-  getDatabase, ref, set, get, onValue, update, push, remove
-} from "https://www.gstatic.com/firebasejs/10.14.0/firebase-database.js";
-import {
-  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  signOut, onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.14.0/firebase-auth.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { 
+  getDatabase, ref, set, push, get, onValue, remove, update 
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+import { 
+  getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
-// Firebase Config
+// Firebase config
 const firebaseConfig = {
-  apiKey: "AIzaSyBLSW2MSs9u7amgxiOUzLehjgUJMv_Ci4E",
+  apiKey: "AIzaSyBWoaMvAmBX_Ha4Vi-4UDsQmm0WQ1Y9hekgit",
   authDomain: "tn-bus-tracker-1b4d8.firebaseapp.com",
   databaseURL: "https://tn-bus-tracker-1b4d8-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "tn-bus-tracker-1b4d8",
   storageBucket: "tn-bus-tracker-1b4d8.appspot.com",
-  messagingSenderId: "660182962689",
-  appId: "1:660182962689:web:f2f7ce8341984829f56600"
+  messagingSenderId: "SENDER_ID",
+  appId: "APP_ID"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const auth = getAuth(app);
+const auth = getAuth();
 
-// Helper: safe key from email
-function keyFromEmail(email) {
-  return email.replace(/\./g, "_");
+// Helper: convert email to safe key
+function keyFromEmail(email){
+  return email.replace(/\./g,"_");
 }
 
-// ASSIGN DRIVER -> writes into assignedDrivers, drivers, users, and routes with duration
-async function assignDriver(email, busId, route, durationDays = 1) {
-  const driverKey = keyFromEmail(email);
-  const assignedAt = new Date().toISOString();
+// ===== Admin Function: Assign Driver =====
+async function assignDriver(driverEmail, busNo, route, durationDays=null){
+  const key = keyFromEmail(driverEmail);
+  let expiry = null;
 
-  await set(ref(db, `assignedDrivers/${driverKey}`), {
-    busNo: busId,
-    route: route,
-    assignedAt,
-    durationDays: durationDays
-  });
+  if(durationDays && durationDays !== 'permanent'){
+    expiry = Date.now() + durationDays*24*60*60*1000; // duration in ms
+  }
 
-  await set(ref(db, `drivers/${driverKey}`), {
-    busId,
+  const data = {
+    busNo,
     route,
-    assignedAt,
-    durationDays
-  });
+    assignedAt: Date.now(),
+    durationDays: durationDays || 'permanent',
+    expiry
+  };
 
-  await update(ref(db, `users/${driverKey}`), { assignedBus: busId, route });
+  await set(ref(db, `assignedDrivers/${key}`), data);
+  await set(ref(db, `drivers/${key}`), { busNo, route, assignedAt: Date.now(), durationDays: durationDays || 'permanent', expiry });
 
-  // Add bus under route (static info)
-  await set(ref(db, `routes/${route}/${busId}`), {
-    busNumber: busId,
-    driverEmail: email,
+  // Update user info if exists
+  await update(ref(db, `users/${key}`), { assignedBus: busNo, route });
+
+  // Add bus under routes for reference
+  await set(ref(db, `routes/${route}/${busNo}`), {
+    busNumber: busNo,
+    driverEmail,
     latitude: 0,
     longitude: 0
   });
 
-  return { ok: true, message: `Assigned ${busId} → ${email} for ${durationDays} day(s)` };
+  return { ok:true, message:`Assigned ${busNo} to ${driverEmail}` };
 }
 
-// UPDATE DRIVER LOCATION
-async function updateDriverLocation(email, lat, lng) {
-  const driverKey = keyFromEmail(email);
-  const snap = await get(ref(db, `drivers/${driverKey}`));
-  if (snap.exists()) {
-    const busId = snap.val().busId;
-    const route = snap.val().route || "unknown";
-    await set(ref(db, `driversLocation/${driverKey}`), {
-      lat, lng, busId, route, time: new Date().toLocaleTimeString()
-    });
-  } else {
-    throw new Error("Driver not assigned in DB");
-  }
-}
-
-// ADD COMPLAINT
-async function addComplaint(userName, userEmail, busId, message) {
-  const complaintRef = push(ref(db, "complaints"));
-  await set(complaintRef, {
-    userName, userEmail, busId, message, timestamp: new Date().toISOString()
+// ===== Driver Function: Update Location =====
+async function updateDriverLocation(driverEmail, busId, route, lat, lng){
+  const key = keyFromEmail(driverEmail);
+  await set(ref(db, `driversLocation/${key}`), {
+    busId,
+    route,
+    lat,
+    lng,
+    time: new Date().toISOString()
   });
 }
 
-// LOGOUT helper
-async function logoutUser() {
+// ===== User Function: Submit Complaint =====
+async function submitComplaint(userName, userEmail, busId, message){
+  const newRef = push(ref(db, "complaints"));
+  await set(newRef, {
+    userName,
+    userEmail,
+    busId,
+    message,
+    timestamp: new Date().toISOString()
+  });
+}
+
+// ===== Remove expired assignments =====
+function removeExpiredAssignments(){
+  onValue(ref(db, "assignedDrivers"), snapshot=>{
+    const data = snapshot.val();
+    if(!data) return;
+
+    Object.entries(data).forEach(([key, val])=>{
+      if(val.expiry && val.expiry < Date.now()){
+        remove(ref(db, `assignedDrivers/${key}`));
+        remove(ref(db, `driversLocation/${key}`));
+      }
+    });
+  });
+}
+
+// Auto cleanup every 5 minutes
+setInterval(removeExpiredAssignments, 5*60*1000);
+
+// ===== Logout Helper =====
+async function logoutUser(){
   await signOut(auth);
   window.location.href = "../index.html";
 }
 
-// CHECK if assignment active based on duration
-function isAssignmentActive(assignedAt, durationDays) {
-  if (!durationDays) return true; // permanent
-  const assignedTime = new Date(assignedAt).getTime();
-  const now = new Date().getTime();
-  const expiryTime = assignedTime + durationDays * 24 * 60 * 60 * 1000;
-  return now <= expiryTime;
-}
-
-export {
-  db, ref, set, get, onValue, update, push, remove,
-  auth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  signOut, onAuthStateChanged, keyFromEmail, assignDriver,
-  updateDriverLocation, addComplaint, logoutUser, isAssignmentActive
+// ===== Export all functions =====
+export { 
+  db, auth, ref, set, get, onValue, push, remove, update, 
+  signOut, onAuthStateChanged, assignDriver, updateDriverLocation, 
+  submitComplaint, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  keyFromEmail, logoutUser
 };

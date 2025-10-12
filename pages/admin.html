@@ -4,123 +4,127 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Panel | TN Bus Tracker</title>
-<link rel="stylesheet" href="../style.css">
 <style>
 body { font-family:"Poppins", sans-serif; background:#F5F5F0; margin:0; padding:0; }
-.header { background:#5D866C; color:white; padding:15px; text-align:center; position:sticky; top:0; font-size:1.5rem; }
-.logout-btn { position:absolute; top:10px; right:20px; background:#C2A68C; color:white; border:none; padding:6px 12px; border-radius:5px; cursor:pointer; }
+.topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#5D866C; color:white; font-size:1.2rem; font-weight:bold; }
+.logo { display:flex; align-items:center; gap:10px; }
+.logo img { height:40px; border-radius:6px; background:#F5F5F0; padding:2px; }
+.logout-btn { background:#C2A68C; color:white; border:none; padding:6px 12px; border-radius:5px; cursor:pointer; }
 .logout-btn:hover { background:#E6D8C3; color:#5D866C; }
-.container { padding:20px; display:flex; flex-direction:column; gap:20px; }
-.assign-box, .complaint-box, .map-box { background:#E6D8C3; padding:15px; border-radius:12px; }
-.assign-box input, .assign-box select, .assign-box button,
-.complaint-box input, .complaint-box textarea, .complaint-box button { width:100%; padding:10px; margin:8px 0; border-radius:6px; border:1px solid #C2A68C; }
-.assign-box button, .complaint-box button { background:#5D866C; color:white; border:none; cursor:pointer; }
-.assign-box button:hover, .complaint-box button:hover { background:#C2A68C; }
-#map { width:100%; height:400px; border-radius:12px; }
-.complaint-item { background:#F5F5F0; padding:8px; margin:6px 0; border-radius:6px; }
+.container { padding:20px; display:flex; flex-direction:column; gap:25px; }
+.assign-box, .assigned-box, .complaint-box { background:#E6D8C3; padding:15px; border-radius:12px; }
+.assign-box input, .assign-box select, .assign-box button { width:100%; padding:10px; margin:8px 0; border-radius:6px; border:1px solid #C2A68C; }
+.assign-box button { background:#5D866C; color:white; border:none; cursor:pointer; }
+.assign-box button:hover { background:#C2A68C; }
+.assigned-list, .complaint-list { max-height:200px; overflow-y:auto; margin-top:10px; }
+.assigned-item, .complaint-item { padding:8px; border-bottom:1px solid #C2A68C; }
 </style>
 </head>
 <body>
 
-<div class="header">
-  Admin Panel
+<div class="topbar">
+  <div class="logo">
+    <img src="../image.jpeg" alt="TN Logo"> Admin Panel
+  </div>
   <button class="logout-btn" id="btnLogout">Logout</button>
 </div>
 
 <div class="container">
-
-  <!-- Assign Driver -->
   <div class="assign-box">
     <h3>Assign Driver to Bus</h3>
     <input type="text" id="driverEmail" placeholder="Driver Email">
     <input type="text" id="busNo" placeholder="Bus Number">
     <input type="text" id="route" placeholder="Route Name">
-    <input type="number" id="durationDays" placeholder="Duration in days (leave empty for permanent)">
+    <input type="number" id="duration" placeholder="Duration in days (leave empty for permanent)">
     <button id="assignBtn">Assign Driver</button>
     <p id="assignStatus"></p>
   </div>
 
-  <!-- Complaints -->
+  <div class="assigned-box">
+    <h3>Assigned Buses</h3>
+    <div class="assigned-list" id="assignedList">
+      Loading...
+    </div>
+  </div>
+
   <div class="complaint-box">
     <h3>User Complaints</h3>
-    <div id="complaintList">Loading complaints...</div>
+    <div class="complaint-list" id="complaintList">
+      Loading...
+    </div>
   </div>
-
-  <!-- Map -->
-  <div class="map-box">
-    <h3>Live Bus Locations</h3>
-    <div id="map"></div>
-  </div>
-
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
-import { assignDriver, db, ref, get, onValue, auth, signOut, keyFromEmail, isAssignmentActive } from "../firebase.js";
+import { db, ref, set, get, onValue, update, keyFromEmail, assignDriver, auth, signOut } from "../firebase.js";
 
-const btnLogout = document.getElementById('btnLogout');
-btnLogout.addEventListener('click', async ()=>{ await signOut(auth); window.location.href='./login.html'; });
+// Logout
+document.getElementById('btnLogout').addEventListener('click', async ()=>{
+  await signOut(auth);
+  window.location.href='../index.html';
+});
 
-// Assign Driver
-const assignBtn = document.getElementById('assignBtn');
-const statusEl = document.getElementById('assignStatus');
-
-assignBtn.addEventListener('click', async () => {
-  const email = document.getElementById('driverEmail').value.trim();
-  const busNo = document.getElementById('busNo').value.trim();
-  const route = document.getElementById('route').value.trim();
-  let duration = parseInt(document.getElementById('durationDays').value.trim());
-  if (!duration) duration = null; // permanent
+// Assign driver
+document.getElementById('assignBtn').addEventListener('click', async ()=>{
+  const email=document.getElementById('driverEmail').value.trim();
+  const busNo=document.getElementById('busNo').value.trim();
+  const route=document.getElementById('route').value.trim();
+  const duration=document.getElementById('duration').value.trim();
+  const statusEl=document.getElementById('assignStatus');
   if(!email||!busNo||!route){ statusEl.textContent="Fill all fields!"; statusEl.style.color="red"; return; }
 
-  try{
-    const res = await assignDriver(email,busNo,route,duration);
-    statusEl.textContent = res.message; statusEl.style.color="green";
-    document.getElementById('driverEmail').value=''; document.getElementById('busNo').value='';
-    document.getElementById('route').value=''; document.getElementById('durationDays').value='';
-  }catch(err){ statusEl.textContent = err.message; statusEl.style.color="red"; }
+  const durationDays = duration ? parseInt(duration) : 'permanent';
+
+  try {
+    await assignDriver(email,busNo,route,durationDays);
+    statusEl.textContent=`Assigned ${busNo} to ${email} for ${durationDays} day(s)`;
+    statusEl.style.color="green";
+    document.getElementById('driverEmail').value="";
+    document.getElementById('busNo').value="";
+    document.getElementById('route').value="";
+    document.getElementById('duration').value="";
+    loadAssignedBuses();
+  } catch(err){
+    statusEl.textContent=err.message; statusEl.style.color="red";
+  }
 });
 
-// Load Complaints
-const complaintList = document.getElementById('complaintList');
-onValue(ref(db,"complaints"), snapshot=>{
-  complaintList.innerHTML = '';
-  if(snapshot.exists()){
-    const data = snapshot.val();
-    Object.values(data).forEach(c=>{
-      const div = document.createElement('div'); div.className='complaint-item';
-      div.innerHTML = `<b>${c.userName} (${c.userEmail})</b><br>Bus: ${c.busId}<br>${c.message}<br><small>${new Date(c.timestamp).toLocaleString()}</small>`;
-      complaintList.appendChild(div);
-    });
-  } else complaintList.textContent='No complaints yet.';
-});
-
-// Map - show live buses
-const map = L.map('map').setView([11.1271,78.6569],7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(map);
-const markers = {};
-
-// Update markers every 5 sec
-async function updateMarkers(){
-  const snap = await get(ref(db,"assignedDrivers"));
-  if(!snap.exists()) return;
-  const drivers = snap.val();
-  const now = new Date().getTime();
-  Object.entries(drivers).forEach(async ([driverKey, d])=>{
-    if(!isAssignmentActive(d.assignedAt, d.durationDays)) return;
-    const locSnap = await get(ref(db,`driversLocation/${driverKey}`));
-    if(!locSnap.exists()) return;
-    const loc = locSnap.val();
-    const latlng = [loc.lat, loc.lng];
-    if(markers[driverKey]){
-      markers[driverKey].setLatLng(latlng);
-    }else{
-      markers[driverKey] = L.marker(latlng).addTo(map).bindPopup(`Bus: ${d.busNo} <br> Route: ${d.route}`);
-    }
+// Load assigned buses
+async function loadAssignedBuses(){
+  const listEl=document.getElementById('assignedList');
+  const snap=await get(ref(db,'assignedDrivers'));
+  listEl.innerHTML='';
+  if(!snap.exists()){ listEl.textContent='No assignments yet.'; return; }
+  const data=snap.val();
+  Object.entries(data).forEach(([key,value])=>{
+    let assignedAt = value.assignedAt || '';
+    let duration = value.durationDays || 'permanent';
+    const div=document.createElement('div');
+    div.className='assigned-item';
+    div.textContent=`Driver: ${key.replace(/_/g,'.')} | Bus: ${value.busNo} | Route: ${value.route} | Assigned at: ${assignedAt} | Duration: ${duration} day(s)`;
+    listEl.appendChild(div);
   });
 }
-updateMarkers(); setInterval(updateMarkers,5000);
 
+// Load complaints
+async function loadComplaints(){
+  const listEl=document.getElementById('complaintList');
+  const snap=await get(ref(db,'complaints'));
+  listEl.innerHTML='';
+  if(!snap.exists()){ listEl.textContent='No complaints yet.'; return; }
+  const data=snap.val();
+  Object.values(data).forEach(c=>{
+    const div=document.createElement('div');
+    div.className='complaint-item';
+    div.textContent=`Bus: ${c.busId} | Name: ${c.userName} | Email: ${c.userEmail} | Message: ${c.message}`;
+    listEl.appendChild(div);
+  });
+}
+
+// Initial load
+loadAssignedBuses();
+loadComplaints();
 </script>
+
 </body>
 </html>
