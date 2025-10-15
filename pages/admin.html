@@ -55,8 +55,7 @@ body { font-family:"Poppins", sans-serif; background:#F5F5F0; margin:0; padding:
 </div>
 
 <script type="module">
-import { assignDriver, db, ref, set, get } from "./firebase.js";
-
+import { db, ref, get, assignDriver, auth, signOut } from "./firebase.js";
 
 // Logout
 document.getElementById('btnLogout').addEventListener('click', async ()=>{
