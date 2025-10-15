@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
 <title>Admin Panel | TN Bus Tracker</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.5/dist/leaflet.css"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<!-- Local Leaflet CSS -->
+<link rel="stylesheet" href="../assets/leaflet.css"/>
 <style>
 body { font-family:"Poppins", sans-serif; background:#F5F5F0; margin:0; padding:0; }
 .topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#5D866C; color:white; font-size:1.2rem; font-weight:bold; }
@@ -18,7 +19,9 @@ body { font-family:"Poppins", sans-serif; background:#F5F5F0; margin:0; padding:
 .assign-box button { background:#5D866C; color:white; border:none; cursor:pointer; }
 .assign-box button:hover { background:#C2A68C; }
 .assigned-list, .complaint-list { max-height:200px; overflow-y:auto; margin-top:10px; }
-.assigned-item, .complaint-item { padding:8px; border-bottom:1px solid #C2A68C; }
+.assigned-item, .complaint-item { padding:8px; border-bottom:1px solid #C2A68C; display:flex; justify-content:space-between; align-items:center; }
+.resolve-btn { background:#5D866C; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
+.resolve-btn:hover { background:#C2A68C; }
 #map { height: 250px; margin-top:10px; border-radius:8px; }
 </style>
 </head>
@@ -53,18 +56,27 @@ body { font-family:"Poppins", sans-serif; background:#F5F5F0; margin:0; padding:
     <div class="complaint-list" id="complaintList">Loading...</div>
   </div>
 </div>
-<script src="https://unpkg.com/leaflet@1.9.5/dist/leaflet.js"></script>
-<script type="module">
-import { db, ref, get, set, onValue, assignDriver, auth, signOut, keyFromEmail } from "./firebase.js";
 
+<!-- Local Leaflet JS -->
+<script src="../assets/leaflet.js"></script>
+
+<script type="module">
+import { db, ref, get, assignDriver, auth, signOut, remove } from "./firebase.js";
+
+// Leaflet check
+if(typeof L==='undefined'){ 
+  console.error("Leaflet not loaded"); 
+  document.getElementById('assignedList').textContent="Map library not loaded. Reload page."; 
+  throw new Error("Leaflet not loaded"); 
+}
 
 // Logout
 document.getElementById('btnLogout').addEventListener('click', async ()=>{
-  await signOut(auth);
+  try{ await signOut(auth); } catch(e){ console.warn("signOut error",e); }
   window.location.href='../index.html';
 });
 
-// Assign driver
+// Assign Driver
 document.getElementById('assignBtn').addEventListener('click', async ()=>{
   const email = document.getElementById('driverEmail').value.trim();
   const busNo = document.getElementById('busNo').value.trim();
@@ -73,79 +85,107 @@ document.getElementById('assignBtn').addEventListener('click', async ()=>{
   const statusEl = document.getElementById('assignStatus');
 
   if(!email || !busNo || !route){
-    statusEl.textContent = "❌ Fill all fields!";
-    statusEl.style.color = "red";
+    statusEl.textContent="❌ Fill all fields!";
+    statusEl.style.color="red";
     return;
   }
 
-  const durationDays = duration ? parseInt(duration) : 'permanent';
-
+  const durationDays = duration? parseInt(duration,10) : 'permanent';
   try{
-    const result = await assignDriver(email, busNo, route, durationDays);
-    statusEl.textContent = `✅ ${busNo} assigned successfully to ${email} for ${durationDays} day(s)`;
-    statusEl.style.color = "green";
-
-    // Clear inputs
+    await assignDriver(email,busNo,route,durationDays);
+    statusEl.textContent=`✅ ${busNo} assigned successfully to ${email} for ${durationDays} day(s)`;
+    statusEl.style.color="green";
     document.getElementById('driverEmail').value="";
     document.getElementById('busNo').value="";
     document.getElementById('route').value="";
     document.getElementById('duration').value="";
-
     await loadAssignedBuses();
-  } catch(err){
-    statusEl.textContent = `❌ Error: ${err.message}`;
-    statusEl.style.color = "red";
+  }catch(err){
+    statusEl.textContent=`❌ Error: ${err.message||err}`;
+    statusEl.style.color="red";
+    console.error("assignDriver error:",err);
   }
 });
 
-// Load assigned buses and map markers
-let map, markers = [];
-async function loadAssignedBuses(){
-  const listEl = document.getElementById('assignedList');
-  const snap = await get(ref(db,'assignedDrivers'));
-  listEl.innerHTML = '';
-  if(!snap.exists()){ listEl.textContent='No assignments yet.'; return; }
-
-  const data = snap.val();
-
-  if(!map){
-    map = L.map('map').setView([11.1271,78.6569], 7);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution:'&copy; OpenStreetMap contributors'
-    }).addTo(map);
-  }
-
-  markers.forEach(m => map.removeLayer(m));
-  markers = [];
-
-  Object.entries(data).forEach(([key,value])=>{
-    let assignedAt = new Date(value.assignedAt).toLocaleString();
-    let duration = value.durationDays || 'permanent';
-    const div = document.createElement('div');
-    div.className = 'assigned-item';
-    div.textContent = `Driver: ${key.replace(/_/g,'.')} | Bus: ${value.busNo} | Route: ${value.route} | Assigned at: ${assignedAt} | Duration: ${duration} day(s)`;
-    listEl.appendChild(div);
-
-    if(value.lat && value.lng){
-      const m = L.marker([value.lat,value.lng]).addTo(map).bindPopup(`${value.busNo} | ${value.route}`);
-      markers.push(m);
-    }
-  });
+// Map
+let map=null; 
+let markers=[];
+async function ensureMap(){
+  if(map) return;
+  map = L.map('map').setView([11.1271,78.6569],7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'&copy; OpenStreetMap contributors'
+  }).addTo(map);
 }
 
-// Load complaints
+// Load Assigned Buses
+async function loadAssignedBuses(){
+  const listEl=document.getElementById('assignedList');
+  try{
+    const snap = await get(ref(db,'assignedDrivers'));
+    listEl.innerHTML='';
+    if(!snap.exists()){ 
+      listEl.textContent='No assignments yet.'; 
+      if(map && markers.length){ markers.forEach(m=>map.removeLayer(m)); markers=[]; }
+      return; 
+    }
+    const data=snap.val();
+    await ensureMap();
+    if(markers.length){ markers.forEach(m=>map.removeLayer(m)); markers=[]; }
+
+    Object.entries(data).forEach(([key,value])=>{
+      const assignedAt=value.assignedAt?new Date(value.assignedAt).toLocaleString():'N/A';
+      const duration=value.durationDays||'permanent';
+      const div=document.createElement('div');
+      div.className='assigned-item';
+      div.textContent=`Driver: ${key.replace(/_/g,'.')} | Bus: ${value.busNo} | Route: ${value.route} | Assigned at: ${assignedAt} | Duration: ${duration} day(s)`;
+      listEl.appendChild(div);
+
+      if(value.lat!=null && value.lng!=null){
+        const m=L.marker([value.lat,value.lng]).addTo(map)
+                 .bindPopup(`${value.busNo} | ${value.route}`);
+        markers.push(m);
+      }
+    });
+
+    if(markers.length){
+      const group=L.featureGroup(markers);
+      map.fitBounds(group.getBounds().pad(0.2));
+    }
+  }catch(err){
+    console.error("loadAssignedBuses error:",err);
+    listEl.textContent='Error loading assignments';
+  }
+}
+
+// Load Complaints
 async function loadComplaints(){
-  const listEl = document.getElementById('complaintList');
-  const snap = await get(ref(db,'complaints'));
-  listEl.innerHTML = '';
-  if(!snap.exists()){ listEl.textContent='No complaints yet.'; return; }
-  const data = snap.val();
-  Object.values(data).forEach(c=>{
-    const div = document.createElement('div');
-    div.className = 'complaint-item';
-    div.textContent = `Bus: ${c.busId || '-'} | Name: ${c.userName} | Email: ${c.userEmail} | Message: ${c.message}`;
-    listEl.appendChild(div);
-  });
+  const listEl=document.getElementById('complaintList');
+  try{
+    const snap = await get(ref(db,'complaints'));
+    listEl.innerHTML='';
+    if(!snap.exists()){ listEl.textContent='No complaints yet.'; return; }
+    const data=snap.val();
+    Object.entries(data).forEach(([key,c])=>{
+      const div=document.createElement('div');
+      div.className='complaint-item';
+      div.innerHTML=`<span>Bus: ${c.busId||'-'} | Name: ${c.userName} | Email: ${c.userEmail} | Message: ${c.message}</span>`;
+      const btn=document.createElement('button');
+      btn.className='resolve-btn';
+      btn.textContent='Resolve';
+      btn.addEventListener('click', async ()=>{
+        try{
+          await remove(ref(db,'complaints/'+key));
+          div.remove();
+        }catch(err){ console.error("Resolve error:",err); }
+      });
+      div.appendChild(btn);
+      listEl.appendChild(div);
+    });
+  }catch(err){
+    console.error("loadComplaints error:",err);
+    listEl.textContent='Error loading complaints';
+  }
 }
 
 // Initial load
@@ -154,6 +194,5 @@ loadComplaints();
 setInterval(()=>{ loadAssignedBuses(); loadComplaints(); },30000);
 
 </script>
-
 </body>
 </html>
