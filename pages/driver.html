@@ -7,20 +7,145 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-html, body { height:100%; margin:0; font-family:Arial,sans-serif; background:#F5F5F0; color:#5D866C; }
-.topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#5D866C; color:#F5F5F0; font-weight:bold; font-size:18px; }
-.logo { display:flex; align-items:center; gap:10px; }
-.logo img { height:40px; border-radius:6px; background:#F5F5F0; padding:2px; }
-.logout { background:#C2A68C; border:none; padding:4px 8px; border-radius:4px; color:#F5F5F0; cursor:pointer; font-weight:bold; font-size:0.7rem; transition:0.2s; }
-.logout:hover { background:#5D866C; }
-.layout { display:flex; gap:18px; padding:20px; height: calc(100vh - 68px); }
-.panel { width:320px; background:#E6D8C3; padding:16px; border-radius:12px; overflow-y:auto; box-shadow:0 2px 8px rgba(0,0,0,0.1); color:#5D866C; }
-.mapwrap { flex:1; border-radius:12px; overflow:hidden; position:relative; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-input, button { padding:10px; border-radius:8px; border:1px solid #C2A68C; background:#F5F5F0; margin-bottom:10px; width:100%; box-sizing:border-box; }
-button { background:#C2A68C; color:#F5F5F0; font-weight:bold; border:none; cursor:pointer; transition:0.2s; }
-button:hover { background:#5D866C; }
-#map { width:100%; height:100%; }
+html, body { 
+  height:100%; 
+  margin:0; 
+  font-family:"Poppins", sans-serif; 
+  background:#F5F5F0; 
+  color:#5D866C; 
+}
+
+/* Topbar styled like Admin Panel */
+.topbar { 
+  display:flex; 
+  justify-content:space-between; 
+  align-items:center; 
+  padding:12px 20px; 
+  background:#5D866C; 
+  color:white; 
+  font-size:1.2rem; 
+  font-weight:bold; 
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  position: sticky;
+  top:0;
+  z-index:100;
+}
+
+/* Logo on the left */
+.logo { 
+  display:flex; 
+  align-items:center; 
+  gap:10px; 
+}
+.logo img { 
+  height:40px; 
+  border-radius:6px; 
+  background:#F5F5F0; 
+  padding:2px; 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Logout button small, top-right corner like Admin */
+.logout { 
+  background:#C2A68C; 
+  color:white; 
+  border:none; 
+  padding:6px 12px; 
+  border-radius:5px; 
+  cursor:pointer; 
+  font-weight:bold; 
+  font-size:0.85rem; 
+  height:auto;
+  min-width:80px;
+  text-align:center;
+  transition:0.3s; 
+}
+.logout:hover { 
+  background:#E6D8C3; 
+  color:#5D866C; 
+}
+
+/* Layout */
+.layout { 
+  display:flex; 
+  gap:18px; 
+  padding:20px; 
+  flex:1;             /* fill available space */
+  min-height: calc(100vh - 68px); /* topbar height */
+  box-sizing: border-box;
+}
+
+/* Panel */
+.panel { 
+  flex: 0 0 320px;    /* fixed width but flexible height */
+  background:#E6D8C3; 
+  padding:16px; 
+  border-radius:12px; 
+  overflow-y:auto; 
+  box-shadow:0 2px 8px rgba(0,0,0,0.1); 
+  color:#5D866C; 
+  height:auto;
+  max-height: calc(100vh - 68px); /* prevent overflow */
+}
+/* Map */
+.mapwrap { 
+  flex:1; 
+  border-radius:12px; 
+  overflow:hidden; 
+  position:relative; 
+  box-shadow:0 2px 8px rgba(0,0,0,0.1); 
+}
+
+/* Inputs & buttons */
+input, button { 
+  padding:10px; 
+  border-radius:8px; 
+  border:1px solid #C2A68C; 
+  background:#F5F5F0; 
+  margin-bottom:10px; 
+  width:100%; 
+  box-sizing:border-box; 
+}
+button { 
+  background:#5D866C; 
+  color:white; 
+  font-weight:bold; 
+  border:none; 
+  cursor:pointer; 
+  transition:0.3s; 
+}
+button:hover { 
+  background:#C2A68C; 
+  color:#5D866C;
+}
+/* Map wrapper */
+.mapwrap { 
+  flex:1; 
+  border-radius:12px; 
+  overflow:hidden; 
+  position:relative; 
+  box-shadow:0 2px 8px rgba(0,0,0,0.1); 
+  min-height:400px; /* ensures minimum visible map */
+  display:flex;}
+
+/* Map full height */
+#map {
+  flex:1; 
+  width:100%; 
+  height:100%; 
+  min-height:400px;
+}
+
+/* Responsive adjustments */
+@media (max-width:768px){
+  .layout { flex-direction:column; }
+  .panel { width:100%; max-height:none; margin-bottom:20px; }
+  .mapwrap { min-height:300px; }
+  #map { min-height:300px; }
+}
 </style>
+
+
 </head>
 <body>
 <header class="topbar">

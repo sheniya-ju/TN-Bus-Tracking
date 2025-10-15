@@ -4,26 +4,150 @@
 <meta charset="utf-8"/>
 <title>Admin Panel | TN Bus Tracker</title>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<!-- Local Leaflet CSS -->
-<link rel="stylesheet" href="../assets/leaflet.css"/>
 <style>
-body { font-family:"Poppins", sans-serif; background:#F5F5F0; margin:0; padding:0; }
-.topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#5D866C; color:white; font-size:1.2rem; font-weight:bold; }
-.logo { display:flex; align-items:center; gap:10px; }
-.logo img { height:40px; border-radius:6px; background:#F5F5F0; padding:2px; }
-.logout-btn { background:#C2A68C; color:white; border:none; padding:6px 12px; border-radius:5px; cursor:pointer; }
-.logout-btn:hover { background:#E6D8C3; color:#5D866C; }
-.container { padding:20px; display:flex; flex-direction:column; gap:25px; }
-.assign-box, .assigned-box, .complaint-box { background:#E6D8C3; padding:15px; border-radius:12px; }
-.assign-box input, .assign-box select, .assign-box button { width:100%; padding:10px; margin:8px 0; border-radius:6px; border:1px solid #C2A68C; }
-.assign-box button { background:#5D866C; color:white; border:none; cursor:pointer; }
-.assign-box button:hover { background:#C2A68C; }
-.assigned-list, .complaint-list { max-height:200px; overflow-y:auto; margin-top:10px; }
-.assigned-item, .complaint-item { padding:8px; border-bottom:1px solid #C2A68C; display:flex; justify-content:space-between; align-items:center; }
-.resolve-btn { background:#5D866C; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
-.resolve-btn:hover { background:#C2A68C; }
-#map { height: 250px; margin-top:10px; border-radius:8px; }
+/* General Styles */
+body { 
+  font-family:"Poppins", sans-serif; 
+  background:#F5F5F0; 
+  margin:0; 
+  padding:0; 
+  color:#333;
+}
+
+/* Topbar */
+.topbar { 
+  display:flex; 
+  justify-content:space-between; 
+  align-items:center; 
+  padding:12px 20px; 
+  background:#5D866C; 
+  color:white; 
+  font-size:1.2rem; 
+  font-weight:bold; 
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  position: sticky;
+  top:0;
+  z-index:100;
+}
+
+.logo { 
+  display:flex; 
+  align-items:center; 
+  gap:10px; 
+}
+.logo img { 
+  height:40px; 
+  border-radius:6px; 
+  background:#F5F5F0; 
+  padding:2px; 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Buttons */
+.logout-btn { 
+  background:#C2A68C; 
+  color:white; 
+  border:none; 
+  padding:8px 16px; 
+  border-radius:6px; 
+  cursor:pointer; 
+  transition:0.3s;
+}
+.logout-btn:hover { 
+  background:#E6D8C3; 
+  color:#5D866C; 
+}
+
+/* Container */
+.container { 
+  padding:20px; 
+  display:flex; 
+  flex-direction:column; 
+  gap:30px; 
+  max-width:1200px;
+  margin:0 auto;
+}
+
+/* Assign Box */
+.assign-box input, .assign-box button { 
+  width:100%; 
+  padding:12px; 
+  margin:8px 0; 
+  border-radius:8px; 
+  border:1px solid #C2A68C; 
+  font-size:1rem;
+  box-sizing:border-box;
+}
+.assign-box button { 
+  background:#5D866C; 
+  color:white; 
+  border:none; 
+  cursor:pointer; 
+  transition:0.3s;
+}
+.assign-box button:hover { 
+  background:#C2A68C; 
+}
+
+/* Tables */
+table { 
+  width:100%; 
+  border-collapse:collapse; 
+  margin-top:10px; 
+  background:#E6D8C3; 
+  border-radius:12px; 
+  overflow:hidden; 
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+th, td { 
+  padding:12px; 
+  text-align:left; 
+  border-bottom:1px solid #C2A68C; 
+  font-size:0.95rem;
+}
+th { 
+  background:#5D866C; 
+  color:white; 
+}
+tr:hover { 
+  background: rgba(93, 134, 108, 0.2); 
+  transition:0.2s;
+}
+
+/* Resolve button */
+.resolve-btn { 
+  background:#5D866C; 
+  color:white; 
+  border:none; 
+  padding:6px 10px; 
+  border-radius:6px; 
+  cursor:pointer; 
+  font-size:0.9rem;
+  transition:0.3s;
+}
+.resolve-btn:hover { 
+  background:#C2A68C; 
+  color:#5D866C;
+}
+
+/* Responsive Design */
+@media (max-width:768px){
+  .topbar { flex-direction:column; align-items:flex-start; gap:10px; }
+  .logo img { height:35px; }
+  .assign-box input, .assign-box button { padding:10px; font-size:0.95rem; }
+  th, td { font-size:0.85rem; padding:8px; }
+  table { font-size:0.9rem; }
+}
+
+@media (max-width:480px){
+  .topbar { font-size:1rem; padding:10px; }
+  .container { padding:15px; gap:20px; }
+  .assign-box input, .assign-box button { padding:8px; font-size:0.9rem; }
+  th, td { font-size:0.8rem; padding:6px; }
+  .resolve-btn { padding:5px 8px; font-size:0.8rem; }
+}
 </style>
+
 </head>
 <body>
 
@@ -47,32 +171,48 @@ body { font-family:"Poppins", sans-serif; background:#F5F5F0; margin:0; padding:
 
   <div class="assigned-box">
     <h3>Assigned Buses</h3>
-    <div class="assigned-list" id="assignedList">Loading...</div>
-    <div id="map"></div>
+    <table id="assignedTable">
+      <thead>
+        <tr>
+          <th>Driver Email</th>
+          <th>Bus Number</th>
+          <th>Route</th>
+          <th>Assigned At</th>
+          <th>Duration</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="5">Loading...</td></tr>
+      </tbody>
+    </table>
   </div>
 
   <div class="complaint-box">
     <h3>User Complaints</h3>
-    <div class="complaint-list" id="complaintList">Loading...</div>
+    <table id="complaintTable">
+      <thead>
+        <tr>
+          <th>Bus Number</th>
+          <th>User Name</th>
+          <th>Email</th>
+          <th>Message</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="6">Loading...</td></tr>
+      </tbody>
+    </table>
   </div>
 </div>
 
-<!-- Local Leaflet JS -->
-<script src="../assets/leaflet.js"></script>
-
 <script type="module">
-import { db, ref, get, assignDriver, auth, signOut, remove } from "./firebase.js";
-
-// Leaflet check
-if(typeof L==='undefined'){ 
-  console.error("Leaflet not loaded"); 
-  document.getElementById('assignedList').textContent="Map library not loaded. Reload page."; 
-  throw new Error("Leaflet not loaded"); 
-}
+import { db, ref, get, assignDriver, auth, signOut, remove, onValue, update } from "./firebase.js";
 
 // Logout
 document.getElementById('btnLogout').addEventListener('click', async ()=>{
-  try{ await signOut(auth); } catch(e){ console.warn("signOut error",e); }
+  try{ await signOut(auth); } catch(e){ console.warn(e); }
   window.location.href='../index.html';
 });
 
@@ -90,7 +230,7 @@ document.getElementById('assignBtn').addEventListener('click', async ()=>{
     return;
   }
 
-  const durationDays = duration? parseInt(duration,10) : 'permanent';
+  const durationDays = duration ? parseInt(duration,10) : 'permanent';
   try{
     await assignDriver(email,busNo,route,durationDays);
     statusEl.textContent=`✅ ${busNo} assigned successfully to ${email} for ${durationDays} day(s)`;
@@ -103,88 +243,76 @@ document.getElementById('assignBtn').addEventListener('click', async ()=>{
   }catch(err){
     statusEl.textContent=`❌ Error: ${err.message||err}`;
     statusEl.style.color="red";
-    console.error("assignDriver error:",err);
+    console.error(err);
   }
 });
 
-// Map
-let map=null; 
-let markers=[];
-async function ensureMap(){
-  if(map) return;
-  map = L.map('map').setView([11.1271,78.6569],7);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    attribution:'&copy; OpenStreetMap contributors'
-  }).addTo(map);
-}
-
 // Load Assigned Buses
 async function loadAssignedBuses(){
-  const listEl=document.getElementById('assignedList');
+  const tbody = document.querySelector('#assignedTable tbody');
   try{
     const snap = await get(ref(db,'assignedDrivers'));
-    listEl.innerHTML='';
+    tbody.innerHTML='';
     if(!snap.exists()){ 
-      listEl.textContent='No assignments yet.'; 
-      if(map && markers.length){ markers.forEach(m=>map.removeLayer(m)); markers=[]; }
+      tbody.innerHTML='<tr><td colspan="5">No assignments yet.</td></tr>';
       return; 
     }
-    const data=snap.val();
-    await ensureMap();
-    if(markers.length){ markers.forEach(m=>map.removeLayer(m)); markers=[]; }
-
+    const data = snap.val();
     Object.entries(data).forEach(([key,value])=>{
-      const assignedAt=value.assignedAt?new Date(value.assignedAt).toLocaleString():'N/A';
-      const duration=value.durationDays||'permanent';
-      const div=document.createElement('div');
-      div.className='assigned-item';
-      div.textContent=`Driver: ${key.replace(/_/g,'.')} | Bus: ${value.busNo} | Route: ${value.route} | Assigned at: ${assignedAt} | Duration: ${duration} day(s)`;
-      listEl.appendChild(div);
-
-      if(value.lat!=null && value.lng!=null){
-        const m=L.marker([value.lat,value.lng]).addTo(map)
-                 .bindPopup(`${value.busNo} | ${value.route}`);
-        markers.push(m);
-      }
+      const assignedAt = value.assignedAt ? new Date(value.assignedAt).toLocaleString() : 'N/A';
+      const duration = value.durationDays || 'permanent';
+      const row = document.createElement('tr');
+      row.innerHTML=`<td>${key.replace(/_/g,'.')}</td><td>${value.busNo}</td><td>${value.route}</td><td>${assignedAt}</td><td>${duration}</td>`;
+      tbody.appendChild(row);
     });
-
-    if(markers.length){
-      const group=L.featureGroup(markers);
-      map.fitBounds(group.getBounds().pad(0.2));
-    }
   }catch(err){
-    console.error("loadAssignedBuses error:",err);
-    listEl.textContent='Error loading assignments';
+    console.error(err);
+    tbody.innerHTML='<tr><td colspan="5">Error loading assignments.</td></tr>';
   }
 }
 
 // Load Complaints
 async function loadComplaints(){
-  const listEl=document.getElementById('complaintList');
+  const tbody = document.querySelector('#complaintTable tbody');
   try{
     const snap = await get(ref(db,'complaints'));
-    listEl.innerHTML='';
-    if(!snap.exists()){ listEl.textContent='No complaints yet.'; return; }
-    const data=snap.val();
+    tbody.innerHTML='';
+    if(!snap.exists()){ 
+      tbody.innerHTML='<tr><td colspan="6">No complaints yet.</td></tr>';
+      return; 
+    }
+    const data = snap.val();
+    const now = Date.now();
+
     Object.entries(data).forEach(([key,c])=>{
-      const div=document.createElement('div');
-      div.className='complaint-item';
-      div.innerHTML=`<span>Bus: ${c.busId||'-'} | Name: ${c.userName} | Email: ${c.userEmail} | Message: ${c.message}</span>`;
-      const btn=document.createElement('button');
-      btn.className='resolve-btn';
-      btn.textContent='Resolve';
-      btn.addEventListener('click', async ()=>{
-        try{
-          await remove(ref(db,'complaints/'+key));
-          div.remove();
-        }catch(err){ console.error("Resolve error:",err); }
-      });
-      div.appendChild(btn);
-      listEl.appendChild(div);
+      let status = c.resolved ? 'Resolved' : 'Pending';
+      const created = new Date(c.timestamp).getTime();
+
+      // Remove resolved complaints older than 1 week
+      if(c.resolved && (now - created > 7*24*60*60*1000)){
+        remove(ref(db,'complaints/'+key));
+        return;
+      }
+
+      const row = document.createElement('tr');
+      row.innerHTML=`<td>${c.busId||'-'}</td><td>${c.userName}</td><td>${c.userEmail}</td><td>${c.message}</td><td>${status}</td>`;
+      const actionTd = document.createElement('td');
+      if(!c.resolved){
+        const btn = document.createElement('button');
+        btn.className='resolve-btn';
+        btn.textContent='Resolve';
+        btn.addEventListener('click', async ()=>{
+          await update(ref(db,'complaints/'+key), { resolved:true, resolvedAt:new Date().toISOString() });
+          loadComplaints();
+        });
+        actionTd.appendChild(btn);
+      }
+      row.appendChild(actionTd);
+      tbody.appendChild(row);
     });
   }catch(err){
-    console.error("loadComplaints error:",err);
-    listEl.textContent='Error loading complaints';
+    console.error(err);
+    tbody.innerHTML='<tr><td colspan="6">Error loading complaints.</td></tr>';
   }
 }
 

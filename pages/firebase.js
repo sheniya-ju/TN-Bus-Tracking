@@ -7,7 +7,6 @@ import {
   getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
-
 // ===== Firebase Config =====
 const firebaseConfig = {
    apiKey: "AIzaSyBLSW2MSs9u7amgxiOUzLehjgUJMv_Ci4E",
@@ -100,7 +99,6 @@ async function updateDriverLocation(driverEmail, busId, route, lat, lng){
   // Update route coordinates
   await update(ref(db, `routes/${route}/${busId}`), { latitude: lat, longitude: lng });
 }
-// Add these functions to your existing firebase.js
 
 // ===== User: Update own location =====
 async function updateUserLocation(userEmail, lat, lng){
@@ -116,6 +114,7 @@ async function updateUserLocation(userEmail, lat, lng){
 async function updateBusRouteCoordinates(busNo, route, lat, lng){
   await update(ref(db, `routes/${route}/${busNo}`), { latitude: lat, longitude: lng });
 }
+
 // ===== User: Submit Complaint =====
 async function submitComplaint(userName, userEmail, busId, message){
   const newRef = push(ref(db, "complaints"));
@@ -152,6 +151,5 @@ export {
   db, auth, ref, set, get, onValue, push, remove, update,
   signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut,
   loginUser, signupUser, logoutUser, assignDriver, updateDriverLocation, submitComplaint,
-  keyFromEmail,updateUserLocation,
-  updateBusRouteCoordinates
+  keyFromEmail, updateUserLocation, updateBusRouteCoordinates
 };
