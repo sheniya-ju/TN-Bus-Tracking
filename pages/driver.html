@@ -55,6 +55,7 @@ const btnShare = document.getElementById('btnShare');
 const status = document.getElementById('status');
 let marker = null;
 let watchId = null;
+let intervalId = null; // <-- added this line
 
 // Logout
 document.getElementById('btnLogout').addEventListener('click', async () => {
@@ -93,37 +94,55 @@ onAuthStateChanged(auth, async user => {
       .bindPopup(`Bus: ${busData.busNo}<br>Route: ${busData.route}`);
     map.setView([loc.lat, loc.lng], 14);
   }
+btnShare.addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    status.textContent = "Geolocation not supported.";
+    return;
+  }
 
-  // Share live location
-  btnShare.addEventListener('click', () => {
-    if(watchId) return; // prevent multiple watchers
-    if(!navigator.geolocation){
-      status.textContent = "Geolocation not supported.";
-      return;
-    }
+  btnShare.disabled = true;
+  status.textContent = "Sharing live location...";
 
-    status.textContent = "Sharing live location...";
-    watchId = navigator.geolocation.watchPosition(async pos => {
+  // Use watchPosition for continuous updates
+  watchId = navigator.geolocation.watchPosition(
+    async (pos) => {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-      const data = { lat, lng, busId: busData.busNo, route: busData.route, time: new Date().toISOString() };
-      
+
+      const data = {
+        lat,
+        lng,
+        busId: busData.busNo,
+        route: busData.route,
+        time: new Date().toISOString()
+      };
+
+      // Save location to Firebase
       await set(ref(db, `driversLocation/${emailKey}`), data).catch(err => {
         status.textContent = "Error updating location";
         console.error(err);
       });
 
-      // Update marker
-      if(marker) marker.setLatLng([lat, lng]);
-      else marker = L.marker([lat, lng]).addTo(map)
-        .bindPopup(`Bus: ${busData.busNo}<br>Route: ${busData.route}`);
-      
+      // Update or create marker
+      if (marker) {
+        marker.setLatLng([lat, lng]);
+      } else {
+        marker = L.marker([lat, lng]).addTo(map)
+          .bindPopup(`Bus: ${busData.busNo}<br>Route: ${busData.route}`)
+          .openPopup();
+      }
+
       map.setView([lat, lng], 14);
       status.textContent = `Location updated at ${new Date().toLocaleTimeString()}`;
-    }, err => {
-      status.textContent = "Unable to get location.";
-    });
-  });
+    },
+    (err) => {
+      status.textContent = "Unable to get location: " + err.message;
+    },
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+  );
+});
+
+
 });
 </script>
 
