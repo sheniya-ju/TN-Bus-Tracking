@@ -45,7 +45,8 @@ button:hover { background:#5D866C; }
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
-import { db, ref, get, auth, onAuthStateChanged, signOut, set } from "./firebase.js";
+import { db, ref, get, updateDriverLocation, auth, onValue, signOut, keyFromEmail } from "./firebase.js";
+
 
 let map = L.map('map').setView([11.1271, 78.6569], 7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(map);

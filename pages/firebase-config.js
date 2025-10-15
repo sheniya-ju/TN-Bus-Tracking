@@ -1,11 +1,12 @@
 // firebase.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { 
-  getDatabase, ref, set, push, get, remove, update 
+  getDatabase, ref, set, push, get, onValue, remove, update 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 import { 
   getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
 
 // ===== Firebase Config =====
 const firebaseConfig = {
@@ -15,7 +16,7 @@ const firebaseConfig = {
    projectId: "tn-bus-tracker-1b4d8",
    storageBucket: "tn-bus-tracker-1b4d8.appspot.com",
    messagingSenderId: "660182962689",
-   appId:  "1:660182962689:web:f2f7ce8341984829f56600"
+   appId: "1:660182962689:web:f2f7ce8341984829f56600"
 };
 
 const app = initializeApp(firebaseConfig);
