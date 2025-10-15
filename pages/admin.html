@@ -55,7 +55,8 @@ body { font-family:"Poppins", sans-serif; background:#F5F5F0; margin:0; padding:
 </div>
 
 <script type="module">
-import { db, ref, get, assignDriver, auth, signOut } from "../firebase.js";
+import { assignDriver, db, ref, set, get } from "./firebase.js";
+
 
 // Logout
 document.getElementById('btnLogout').addEventListener('click', async ()=>{
@@ -63,7 +64,7 @@ document.getElementById('btnLogout').addEventListener('click', async ()=>{
   window.location.href='../index.html';
 });
 
-// Assign driver with proper success message
+// Assign driver
 document.getElementById('assignBtn').addEventListener('click', async ()=>{
   const email = document.getElementById('driverEmail').value.trim();
   const busNo = document.getElementById('busNo').value.trim();
@@ -80,11 +81,11 @@ document.getElementById('assignBtn').addEventListener('click', async ()=>{
   const durationDays = duration ? parseInt(duration) : 'permanent';
 
   try{
-    await assignDriver(email, busNo, route, durationDays);
-    statusEl.textContent = `✅ Bus ${busNo} assigned successfully to ${email} for ${durationDays} day(s)`;
+    const result = await assignDriver(email, busNo, route, durationDays);
+    statusEl.textContent = `✅ ${busNo} assigned successfully to ${email} for ${durationDays} day(s)`;
     statusEl.style.color = "green";
 
-    // Clear input fields
+    // Clear inputs
     document.getElementById('driverEmail').value="";
     document.getElementById('busNo').value="";
     document.getElementById('route').value="";
@@ -97,7 +98,7 @@ document.getElementById('assignBtn').addEventListener('click', async ()=>{
   }
 });
 
-// Load assigned buses with Leaflet markers
+// Load assigned buses and map markers
 let map, markers = [];
 async function loadAssignedBuses(){
   const listEl = document.getElementById('assignedList');
@@ -107,15 +108,13 @@ async function loadAssignedBuses(){
 
   const data = snap.val();
 
-  // Initialize map if not already
   if(!map){
-    map = L.map('map').setView([11.1271, 78.6569], 7);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    map = L.map('map').setView([11.1271,78.6569], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution:'&copy; OpenStreetMap contributors'
     }).addTo(map);
   }
 
-  // Remove old markers
   markers.forEach(m => map.removeLayer(m));
   markers = [];
 
@@ -127,7 +126,6 @@ async function loadAssignedBuses(){
     div.textContent = `Driver: ${key.replace(/_/g,'.')} | Bus: ${value.busNo} | Route: ${value.route} | Assigned at: ${assignedAt} | Duration: ${duration} day(s)`;
     listEl.appendChild(div);
 
-    // Add marker if driver location exists
     if(value.lat && value.lng){
       const m = L.marker([value.lat,value.lng]).addTo(map).bindPopup(`${value.busNo} | ${value.route}`);
       markers.push(m);
@@ -153,9 +151,8 @@ async function loadComplaints(){
 // Initial load
 loadAssignedBuses();
 loadComplaints();
+setInterval(()=>{ loadAssignedBuses(); loadComplaints(); },30000);
 
-// Refresh every 30s
-setInterval(()=>{ loadAssignedBuses(); loadComplaints(); }, 30000);
 </script>
 <script src="https://unpkg.com/leaflet@1.9.5/dist/leaflet.js"></script>
 </body>

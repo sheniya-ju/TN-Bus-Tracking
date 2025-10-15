@@ -1,7 +1,7 @@
 // firebase.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { 
-  getDatabase, ref, set, push, get, onValue, remove, update 
+  getDatabase, ref, set, push, get, remove, update 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 import { 
   getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged 
@@ -13,7 +13,7 @@ const firebaseConfig = {
    authDomain: "tn-bus-tracker-1b4d8.firebaseapp.com",
    databaseURL: "https://tn-bus-tracker-1b4d8-default-rtdb.asia-southeast1.firebasedatabase.app",
    projectId: "tn-bus-tracker-1b4d8",
-   storageBucket: "tn-bus-tracker-1b4d8.firebasestorage.app",
+   storageBucket: "tn-bus-tracker-1b4d8.appspot.com",
    messagingSenderId: "660182962689",
    appId:  "1:660182962689:web:f2f7ce8341984829f56600"
 };
@@ -53,7 +53,6 @@ async function assignDriver(driverEmail, busNo, route, durationDays=null){
   const key = keyFromEmail(driverEmail);
   let expiry = null;
 
-  // Handle duration
   if(durationDays && durationDays !== 'permanent'){
     expiry = Date.now() + durationDays*24*60*60*1000; // duration in ms
   }
@@ -67,18 +66,15 @@ async function assignDriver(driverEmail, busNo, route, durationDays=null){
     expiry
   };
 
-  // Save assignment
+  // Save assignment in all relevant nodes
   await set(ref(db, `assignedDrivers/${key}`), data);
   await set(ref(db, `drivers/${key}`), data);
 
-  // Update user profile if exists
-  try {
-    await update(ref(db, `users/${key}`), { assignedBus: busNo, route });
-  } catch(e){
-    console.log("User not found, skipping user update");
-  }
+  // Update user profile safely
+  try { await update(ref(db, `users/${key}`), { assignedBus: busNo, route }); } 
+  catch(e){ console.log("User not found, skipping update"); }
 
-  // Add bus under route reference
+  // Add/update bus under route
   await set(ref(db, `routes/${route}/${busNo}`), {
     busNumber: busNo,
     driverEmail,
@@ -100,7 +96,7 @@ async function updateDriverLocation(driverEmail, busId, route, lat, lng){
     time: new Date().toISOString()
   });
 
-  // Update route's bus coordinates too
+  // Update route coordinates
   await update(ref(db, `routes/${route}/${busId}`), { latitude: lat, longitude: lng });
 }
 
@@ -124,7 +120,6 @@ async function removeExpiredAssignments(){
 
   for(const [key, val] of Object.entries(data)){
     if(val.expiry && val.expiry < Date.now()){
-      console.log("Removing expired assignment:", key, val.busNo);
       await remove(ref(db, `assignedDrivers/${key}`));
       await remove(ref(db, `driversLocation/${key}`));
       await remove(ref(db, `drivers/${key}`));
@@ -132,9 +127,8 @@ async function removeExpiredAssignments(){
   }
 }
 
-// Call once on startup
+// Auto-clean expired assignments
 removeExpiredAssignments();
-// Auto cleanup every 5 minutes
 setInterval(removeExpiredAssignments, 5*60*1000);
 
 // ===== Export Functions =====
