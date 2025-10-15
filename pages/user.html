@@ -7,21 +7,173 @@
 <link rel="stylesheet" href="../style.css">
 <link rel="stylesheet" href="../assets/leaflet.css"/>
 <style>
-body { font-family: Arial, sans-serif; background:#F5F5F0; margin:0; padding:0; }
-.header { display:flex; justify-content:space-between; align-items:center; background:#5D866C; color:white; padding:12px 20px; position:sticky; top:0; }
-.header .logo { display:flex; align-items:center; gap:10px; font-size:1.3rem; font-weight:bold; }
-.header .logo img { height:40px; border-radius:6px; }
-.logout-btn { background:#C2A68C; color:white; border:none; padding:6px 12px; border-radius:5px; cursor:pointer; }
-.logout-btn:hover { background:#E6D8C3; color:#5D866C; }
-.container { padding:20px; display:flex; flex-direction:column; gap:20px; }
-#map { height:400px; width:100%; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
-.route-list { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
-.route-btn { padding:6px 12px; border:none; border-radius:6px; background:#C2A68C; color:white; cursor:pointer; transition:0.2s; }
-.route-btn:hover { background:#5D866C; }
-.complaint-box { background:#E6D8C3; padding:15px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
-input, textarea, button { width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #C2A68C; box-sizing:border-box; }
-button { background:#5D866C; color:#F5F5F0; font-weight:bold; border:none; cursor:pointer; transition:0.2s; }
-button:hover { background:#C2A68C; color:#5D866C; }
+/* General Styles */
+body { 
+  font-family: Arial, sans-serif; 
+  background: #F5F5F0; 
+  margin: 0; 
+  padding: 0; 
+  box-sizing: border-box;
+}
+
+/* Header */
+.header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  background: #5D866C; 
+  color: white; 
+  padding: 12px 20px; 
+  position: sticky; 
+  top: 0; 
+  z-index: 100;
+  flex-wrap: wrap; 
+  gap: 10px;
+}
+
+.header .logo { 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+  font-size: 1.3rem; 
+  font-weight: bold; 
+}
+
+.header .logo img { 
+  height: 40px; 
+  border-radius: 6px; 
+}
+
+/* Small fixed logout button */
+.logout-btn { 
+  background: #C2A68C; 
+  color: white; 
+  border: none; 
+  padding: 4px 8px; /* very small */
+  border-radius: 5px; 
+  cursor: pointer; 
+  transition: 0.3s; 
+  font-size: 0.8rem; /* smaller font */
+  position: absolute; /* fixed in top-right corner */
+  top: 10px;
+  right: 10px;
+  z-index: 200; /* above everything */
+  width: auto !important; /* prevent full width */
+  white-space: nowrap; /* keep text in one line */
+}
+
+.logout-btn:hover { 
+  background: #E6D8C3; 
+  color: #5D866C; 
+}
+
+
+
+/* Container */
+.container { 
+  padding: 20px; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 25px; 
+  max-width: 1200px; 
+  margin: 0 auto; 
+  box-sizing: border-box;
+}
+
+/* Map */
+#map { 
+  height: 400px; 
+  width: 100%; 
+  border-radius: 12px; 
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2); 
+}
+
+/* Route Buttons */
+.route-list { 
+  display: flex; 
+  flex-wrap: nowrap; 
+  overflow-x: auto; 
+  gap: 10px; 
+  padding-bottom: 5px; 
+  margin-bottom: 10px; 
+  -webkit-overflow-scrolling: touch; 
+}
+
+.route-btn { 
+  padding: 8px 14px; 
+  border: none; 
+  border-radius: 6px; 
+  background: #C2A68C; 
+  color: white; 
+  cursor: pointer; 
+  transition: 0.2s; 
+  white-space: nowrap; 
+  flex: 0 0 auto; 
+  text-align: center;
+}
+
+.route-btn:hover { 
+  background: #5D866C; 
+}
+
+/* Complaint Box */
+.complaint-box { 
+  background: #E6D8C3; 
+  padding: 15px; 
+  border-radius: 12px; 
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2); 
+  display: flex; 
+  flex-direction: column; 
+  gap: 10px; 
+}
+
+input, textarea, button { 
+  width: 100%; 
+  padding: 10px; 
+  border-radius: 8px; 
+  border: 1px solid #C2A68C; 
+  box-sizing: border-box; 
+  font-size: 1rem;
+}
+
+button { 
+  background: #5D866C; 
+  color: #F5F5F0; 
+  font-weight: bold; 
+  border: none; 
+  cursor: pointer; 
+  transition: 0.2s; 
+}
+
+button:hover { 
+  background: #C2A68C; 
+  color: #5D866C; 
+}
+
+/* Responsive Design */
+@media (max-width:768px){
+  .header { 
+    flex-direction: column; 
+    align-items: flex-start; 
+    gap: 10px; 
+  }
+  .header .logo { font-size: 1.1rem; }
+  #map { height: 300px; }
+  .route-btn { flex: 0 0 45%; font-size: 0.95rem; }
+  input, textarea, button { font-size: 0.95rem; padding: 8px; }
+  .complaint-box { padding: 12px; }
+}
+
+@media (max-width:480px){
+  .header { font-size: 1rem; padding: 10px; }
+  #map { height: 250px; }
+  .route-list { gap: 8px; }
+  .route-btn { flex: 0 0 auto; }
+  input, textarea, button { font-size: 0.9rem; padding: 7px; }
+  .complaint-box { padding: 10px; }
+}
+
+
 </style>
 </head>
 <body>

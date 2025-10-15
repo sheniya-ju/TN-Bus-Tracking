@@ -4,24 +4,99 @@
   <meta charset="UTF-8">
   <title>Signup - TN Bus Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body { font-family: Arial; background:#F5F5F0; color:#5D866C; display:flex; justify-content:center; align-items:center; height:100vh; }
-    .container { background:#E6D8C3; padding:30px; border-radius:12px; width:350px; box-shadow:0 2px 8px rgba(0,0,0,0.2);}
-    input, button { width:100%; padding:10px; margin-bottom:12px; border-radius:8px; border:1px solid #C2A68C; box-sizing:border-box; }
-    button { border:none; background:#5D866C; color:#F5F5F0; font-weight:bold; cursor:pointer; }
-    .logo {
-      width: 350px;
-      height: 100px;
-      object-fit: cover;
-      border-radius: 12px;
-      margin-bottom: 20px;
+ <style>
+  body { 
+    font-family: Arial, sans-serif; 
+    background: #F5F5F0; 
+    color: #5D866C; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    height: 100vh; 
+    margin: 0;
+    box-sizing: border-box;
+  }
+
+  .container { 
+    background: #E6D8C3; 
+    padding: 30px 25px; 
+    border-radius: 12px; 
+    width: 350px; 
+    max-width: 90%; /* responsive */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    display: flex; 
+    flex-direction: column; 
+    align-items: center;
+    gap: 15px; /* consistent spacing */
+  }
+
+  .logo {
+    width: 120px; 
+    height: 120px; 
+    object-fit: cover; 
+    border-radius: 12px; 
+    margin-bottom: 10px; 
+  }
+
+  h2 {
+    margin: 0 0 15px 0; 
+    font-size: 1.5rem;
+    text-align: center;
+  }
+
+  input, select, button { 
+    width: 100%; 
+    padding: 10px; 
+    margin-bottom: 12px; 
+    border-radius: 8px; 
+    border: 1px solid #C2A68C; 
+    box-sizing: border-box; 
+    font-size: 1rem;
+  }
+
+  select {
+    appearance: none; 
+    -webkit-appearance: none; 
+    -moz-appearance: none; 
+    text-align: left;
+  }
+
+  button { 
+    border: none; 
+    background: #5D866C; 
+    color: #F5F5F0; 
+    font-weight: bold; 
+    cursor: pointer; 
+    transition: 0.2s; 
+  }
+
+  button:hover { 
+    background: #C2A68C; 
+    color: #5D866C; 
+  }
+
+  p { 
+    font-weight: bold; 
+    text-align: center; 
+    margin: 0;
+  }
+
+  .error { color: red; }
+  .success { color: green; }
+
+  /* Responsive adjustments */
+  @media (max-width:480px){
+    .container { 
+      padding: 20px 15px; 
+      width: 90%; 
     }
 
-    button:hover { background:#C2A68C; color:#5D866C; }
-    p { font-weight:bold; text-align:center; }
-    .error { color:red; }
-    .success { color:green; }
-  </style>
+    h2 { font-size: 1.3rem; }
+    input, select, button { font-size: 0.95rem; padding: 8px; }
+    .logo { width: 100px; height: 100px; }
+  }
+</style>
+
 </head>
 <body>
 

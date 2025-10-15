@@ -47,18 +47,20 @@ html, body {
 
 /* Logout button small, top-right corner like Admin */
 .logout { 
-  background:#C2A68C; 
-  color:white; 
-  border:none; 
-  padding:6px 12px; 
-  border-radius:5px; 
-  cursor:pointer; 
-  font-weight:bold; 
-  font-size:0.85rem; 
-  height:auto;
-  min-width:80px;
-  text-align:center;
-  transition:0.3s; 
+  background: #C2A68C; 
+  color: white; 
+  border: none; 
+  padding: 4px 8px; /* very small */
+  border-radius: 5px; 
+  cursor: pointer; 
+  transition: 0.3s; 
+  font-size: 0.8rem; /* smaller font */
+  position: absolute; /* fixed in top-right corner */
+  top: 10px;
+  right: 10px;
+  z-index: 200; /* above everything */
+  width: auto !important; /* prevent full width */
+  white-space: nowrap; /* keep text in one line */ 
 }
 .logout:hover { 
   background:#E6D8C3; 
