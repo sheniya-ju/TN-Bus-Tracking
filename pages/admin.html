@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <style>
 /* General Styles */
-body { 
+body {  
   font-family: "Poppins", sans-serif; 
   background: #F5F5F0; 
   margin: 0; 
@@ -15,7 +15,7 @@ body {
 }
 
 /* Topbar */
-.topbar { 
+.topbar {
   display: flex; 
   justify-content: space-between; 
   align-items: center; 
@@ -27,15 +27,18 @@ body {
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
   position: sticky;
   top: 0;
+  left: 0;
   z-index: 100;
-  flex-wrap: wrap; /* fix wrap issues on mobile */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .logo { 
   display: flex; 
-  align-items: center; 
+  align-items: center;
   gap: 10px; 
 }
+
 .logo img { 
   height: 40px; 
   border-radius: 6px; 
@@ -44,16 +47,20 @@ body {
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-/* Buttons */
-.logout-btn { 
+/* Logout Button */
+.logout-btn {
   background: #C2A68C; 
   color: white; 
   border: none; 
-  padding: 8px 16px; 
-  border-radius: 6px; 
+  padding: 8px 14px; 
+  border-radius: 5px; 
   cursor: pointer; 
-  transition: 0.3s;
+  transition: 0.3s; 
+  font-size: 0.9rem; 
+  position: relative;
+  white-space: nowrap;
 }
+
 .logout-btn:hover { 
   background: #E6D8C3; 
   color: #5D866C; 
@@ -74,7 +81,11 @@ body {
 .assign-box { 
   display: flex; 
   flex-direction: column; 
-  gap: 10px; 
+  gap: 12px; 
+  background: #fff;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 .assign-box input, .assign-box button { 
   width: 100%; 
@@ -97,7 +108,7 @@ body {
 
 /* Tables */
 .table-container { 
-  overflow-x: auto; /* allow horizontal scroll on mobile */
+  overflow-x: auto;
   width: 100%;
 }
 table { 
@@ -108,13 +119,13 @@ table {
   border-radius: 12px; 
   overflow: hidden; 
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  min-width: 600px; /* prevent super small tables breaking */
 }
 th, td { 
   padding: 12px; 
   text-align: left; 
   border-bottom: 1px solid #C2A68C; 
   font-size: 0.95rem;
+  word-break: break-word;
 }
 th { 
   background: #5D866C; 
@@ -142,25 +153,65 @@ tr:hover {
 }
 
 /* Responsive Design */
-@media (max-width:768px){
+@media (max-width: 768px){
   .topbar { 
     flex-direction: column; 
-    align-items: flex-start; 
+    align-items: center; 
     gap: 10px; 
+    text-align: center;
   }
-  .logo img { height: 35px; }
-  .assign-box input, .assign-box button { padding: 10px; font-size: 0.95rem; }
-  th, td { font-size: 0.85rem; padding: 8px; }
-  table { font-size: 0.9rem; }
+
+  .logo {
+    justify-content: center;
+  }
+
+  .logout-btn {
+    align-self: center;
+    width: 100%;
+    max-width: 200px;
+  }
+
+  .assign-box {
+    padding: 12px;
+  }
+
+  .assign-box input, .assign-box button {
+    padding: 10px;
+    font-size: 0.95rem;
+  }
+
+  table {
+    font-size: 0.85rem;
+  }
+
+  th, td {
+    padding: 8px;
+  }
 }
 
-@media (max-width:480px){
-  .topbar { font-size: 1rem; padding: 10px; }
-  .container { padding: 15px; gap: 20px; }
-  .assign-box input, .assign-box button { padding: 8px; font-size: 0.9rem; }
-  th, td { font-size: 0.8rem; padding: 6px; }
-  .resolve-btn { padding: 5px 8px; font-size: 0.8rem; }
+@media (max-width: 480px){
+  .topbar { 
+    font-size: 1rem; 
+    padding: 10px; 
+  }
+  .container { 
+    padding: 10px; 
+    gap: 20px; 
+  }
+  .assign-box input, .assign-box button { 
+    padding: 8px; 
+    font-size: 0.9rem; 
+  }
+  th, td { 
+    font-size: 0.8rem; 
+    padding: 6px; 
+  }
+  .resolve-btn { 
+    padding: 5px 8px; 
+    font-size: 0.8rem; 
+  }
 }
+
 </style>
 
 </head>
