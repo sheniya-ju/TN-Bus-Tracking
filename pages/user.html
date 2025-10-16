@@ -4,10 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>User Panel | TN Bus Tracker</title>
-<link rel="stylesheet" href="../style.css">
 <link rel="stylesheet" href="../assets/leaflet.css"/>
 <style>
-/* General Styles */
 body { 
   font-family: Arial, sans-serif; 
   background: #F5F5F0; 
@@ -15,8 +13,6 @@ body {
   padding: 0; 
   box-sizing: border-box;
 }
-
-/* Header */
 .header { 
   display: flex; 
   justify-content: space-between; 
@@ -30,7 +26,6 @@ body {
   flex-wrap: wrap; 
   gap: 10px;
 }
-
 .header .logo { 
   display: flex; 
   align-items: center; 
@@ -38,38 +33,30 @@ body {
   font-size: 1.3rem; 
   font-weight: bold; 
 }
-
 .header .logo img { 
   height: 40px; 
   border-radius: 6px; 
 }
-
-/* Small fixed logout button */
 .logout-btn { 
-  background: #C2A68C; 
+   background: #C2A68C; 
   color: white; 
   border: none; 
-  padding: 4px 8px; /* very small */
+  padding: 4px 8px; 
   border-radius: 5px; 
   cursor: pointer; 
   transition: 0.3s; 
-  font-size: 0.8rem; /* smaller font */
-  position: absolute; /* fixed in top-right corner */
+  font-size: 0.8rem; 
+  position: absolute; 
   top: 10px;
   right: 10px;
-  z-index: 200; /* above everything */
-  width: auto !important; /* prevent full width */
-  white-space: nowrap; /* keep text in one line */
+  z-index: 200; 
+  width: auto !important; 
+  white-space: nowrap; 
 }
-
 .logout-btn:hover { 
   background: #E6D8C3; 
   color: #5D866C; 
 }
-
-
-
-/* Container */
 .container { 
   padding: 20px; 
   display: flex; 
@@ -77,28 +64,19 @@ body {
   gap: 25px; 
   max-width: 1200px; 
   margin: 0 auto; 
-  box-sizing: border-box;
 }
-
-/* Map */
 #map { 
   height: 400px; 
   width: 100%; 
   border-radius: 12px; 
   box-shadow: 0 2px 8px rgba(0,0,0,0.2); 
 }
-
-/* Route Buttons */
 .route-list { 
   display: flex; 
-  flex-wrap: nowrap; 
   overflow-x: auto; 
   gap: 10px; 
-  padding-bottom: 5px; 
-  margin-bottom: 10px; 
-  -webkit-overflow-scrolling: touch; 
+  margin-bottom: 10px;
 }
-
 .route-btn { 
   padding: 8px 14px; 
   border: none; 
@@ -108,15 +86,10 @@ body {
   cursor: pointer; 
   transition: 0.2s; 
   white-space: nowrap; 
-  flex: 0 0 auto; 
-  text-align: center;
 }
-
 .route-btn:hover { 
   background: #5D866C; 
 }
-
-/* Complaint Box */
 .complaint-box { 
   background: #E6D8C3; 
   padding: 15px; 
@@ -126,7 +99,6 @@ body {
   flex-direction: column; 
   gap: 10px; 
 }
-
 input, textarea, button { 
   width: 100%; 
   padding: 10px; 
@@ -135,7 +107,6 @@ input, textarea, button {
   box-sizing: border-box; 
   font-size: 1rem;
 }
-
 button { 
   background: #5D866C; 
   color: #F5F5F0; 
@@ -144,36 +115,10 @@ button {
   cursor: pointer; 
   transition: 0.2s; 
 }
-
 button:hover { 
   background: #C2A68C; 
   color: #5D866C; 
 }
-
-/* Responsive Design */
-@media (max-width:768px){
-  .header { 
-    flex-direction: column; 
-    align-items: flex-start; 
-    gap: 10px; 
-  }
-  .header .logo { font-size: 1.1rem; }
-  #map { height: 300px; }
-  .route-btn { flex: 0 0 45%; font-size: 0.95rem; }
-  input, textarea, button { font-size: 0.95rem; padding: 8px; }
-  .complaint-box { padding: 12px; }
-}
-
-@media (max-width:480px){
-  .header { font-size: 1rem; padding: 10px; }
-  #map { height: 250px; }
-  .route-list { gap: 8px; }
-  .route-btn { flex: 0 0 auto; }
-  input, textarea, button { font-size: 0.9rem; padding: 7px; }
-  .complaint-box { padding: 10px; }
-}
-
-
 </style>
 </head>
 <body>
@@ -202,14 +147,14 @@ button:hover {
 <script type="module">
 import { db, ref, onValue, set, push, auth, onAuthStateChanged, signOut, keyFromEmail } from "./firebase.js";
 
-// Initialize map
 let map = L.map('map').setView([11.1271,78.6569], 7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
 const markers = {};
 let userMarker = null;
 let userLocation = null;
-const routeListEl = document.getElementById('routeList');
+let watchId = null;
+let firstUpdate = true;
 
 // Logout
 document.getElementById('btnLogout').addEventListener('click', async () => {
@@ -223,66 +168,65 @@ onAuthStateChanged(auth, user => {
   else trackUserLocation(user);
 });
 
-// Track user location and store in Firebase
+// Track user location
 function trackUserLocation(user){
   if (!navigator.geolocation) return alert("Geolocation not supported");
 
-  navigator.geolocation.watchPosition(async (pos)=>{
+  if(watchId) navigator.geolocation.clearWatch(watchId);
+
+  watchId = navigator.geolocation.watchPosition(async (pos)=>{
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
     userLocation = { lat, lng };
 
     const userKey = keyFromEmail(user.email);
-    await set(ref(db, `usersLocation/${userKey}`), {
-      lat, lng, time: new Date().toISOString()
-    });
+    await set(ref(db, `usersLocation/${userKey}`), { lat, lng, time: new Date().toISOString() });
 
     if(userMarker) userMarker.setLatLng([lat,lng]);
-    else userMarker = L.marker([lat,lng], {icon:L.icon({iconUrl:'../user-icon.png', iconSize:[30,30]})}).addTo(map)
-      .bindPopup("You are here").openPopup();
+    else userMarker = L.marker([lat,lng]).addTo(map).bindPopup("You are here").openPopup();
 
-    map.setView([lat,lng], 12);
+    if(firstUpdate){
+      map.setView([lat,lng], 12);
+      firstUpdate = false;
+    }
 
-    // Update distance to buses
     Object.values(markers).forEach(markerObj=>{
       const { marker, lat: busLat, lng: busLng } = markerObj;
       const distanceKm = haversineDistance(busLat, busLng, lat, lng);
-      const estimatedMin = Math.round((distanceKm/40)*60); // avg speed 40 km/h
-      marker.setPopupContent(`${marker.getPopup().getContent()}<br>Distance: ${distanceKm.toFixed(2)} km<br>ETA: ${estimatedMin} min`);
+      const estimatedMin = Math.round((distanceKm/40)*60);
+      marker.setPopupContent(`<b>Bus:</b> ${markerObj.busNo}<br>Distance: ${distanceKm.toFixed(2)} km<br>ETA: ${estimatedMin} min`);
     });
-  }, (err)=>console.error("GPS error: ", err), { enableHighAccuracy:true });
+  });
 }
 
-// Haversine formula
+// Haversine
 function haversineDistance(lat1, lon1, lat2, lon2){
   const R = 6371;
   const dLat = (lat2-lat1)*Math.PI/180;
   const dLon = (lon2-lon1)*Math.PI/180;
   const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-  const c = 2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-  return R*c;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// Load available routes dynamically
+// Load routes dynamically
 function loadRoutes(){
+  const routeListEl = document.getElementById('routeList');
   onValue(ref(db, 'routes'), snapshot=>{
-    const routesData = snapshot.val();
-    if(!routesData) return;
-
+    const routes = snapshot.val();
+    if(!routes) return;
     routeListEl.innerHTML = '';
-    Object.keys(routesData).forEach(route=>{
-      const btn = document.createElement('button');
-      btn.className = 'route-btn';
-      btn.textContent = route;
-      btn.addEventListener('click', ()=>loadBuses(route));
-      routeListEl.appendChild(btn);
+    Object.keys(routes).forEach(routeName=>{
+      const routeBtn = document.createElement('button');
+      routeBtn.className = 'route-btn';
+      routeBtn.textContent = routeName;
+      routeBtn.addEventListener('click', ()=>loadBuses(routeName));
+      routeListEl.appendChild(routeBtn);
     });
   });
 }
 
-// Load buses for a route
+// Load buses
 function loadBuses(selectedRoute){
-  // Remove old markers
   Object.values(markers).forEach(m=>map.removeLayer(m.marker));
   Object.keys(markers).forEach(k=>delete markers[k]);
 
@@ -291,48 +235,47 @@ function loadBuses(selectedRoute){
     if(!buses) return;
 
     Object.entries(buses).forEach(([busNo, busInfo])=>{
+      if(!busInfo.latitude || !busInfo.longitude) return;
       const latLng = [busInfo.latitude, busInfo.longitude];
-      const marker = L.marker(latLng).addTo(map)
-        .bindPopup(`<b>Bus:</b> ${busNo}<br><b>Route:</b> ${selectedRoute}`);
-      
-      // Click to select bus for complaint
-      marker.on('click', ()=>{
-        document.getElementById('busId').value = busNo;
-      });
 
-      // Store marker
-      markers[busNo] = { marker, lat: busInfo.latitude, lng: busInfo.longitude, route: selectedRoute };
+      let marker = markers[busNo]?.marker;
+      if(!marker){
+        marker = L.marker(latLng).addTo(map).bindPopup(`<b>Bus:</b> ${busNo}<br><b>Route:</b> ${selectedRoute}`);
+      } else {
+        marker.setLatLng(latLng);
+      }
 
-      // Update distance if user location exists
+      markers[busNo] = { marker, lat: busInfo.latitude, lng: busInfo.longitude, busNo, route: selectedRoute };
+
       if(userLocation){
-        const distanceKm = haversineDistance(busInfo.latitude,busInfo.longitude,userLocation.lat,userLocation.lng);
+                const distanceKm = haversineDistance(busInfo.latitude, busInfo.longitude, userLocation.lat, userLocation.lng);
         const estimatedMin = Math.round((distanceKm/40)*60);
-        marker.setPopupContent(`<b>Bus:</b> ${busNo}<br><b>Route:</b> ${selectedRoute}<br>Distance: ${distanceKm.toFixed(2)} km<br>ETA: ${estimatedMin} min`);
+        marker.setPopupContent(`<b>Bus:</b> ${busNo}<br>Distance: ${distanceKm.toFixed(2)} km<br>ETA: ${estimatedMin} min`);
       }
     });
   });
 }
 
-loadRoutes();
-
-// Submit complaint
-document.getElementById('submitComplaint').addEventListener('click', async () => {
-  const userName = document.getElementById('userName').value.trim();
-  const userEmail = document.getElementById('userEmail').value.trim();
+// Complaint submission
+document.getElementById('submitComplaint').addEventListener('click', async ()=>{
+  const name = document.getElementById('userName').value.trim();
+  const email = document.getElementById('userEmail').value.trim();
   const busId = document.getElementById('busId').value.trim();
   const message = document.getElementById('userMessage').value.trim();
 
-  if(!userName || !userEmail || !busId || !message) return alert('Fill all fields');
+  if(!name || !email || !busId || !message) return alert("All fields required");
 
-  const complaintRef = push(ref(db, 'complaints'));
-  await set(complaintRef, { userName, userEmail, busId, message, timestamp: new Date().toISOString() });
+  await push(ref(db, 'complaints'), { name, email, busId, message, time: new Date().toISOString() });
 
-  alert('Complaint submitted successfully!');
+  alert("Complaint submitted successfully");
   document.getElementById('userName').value = '';
   document.getElementById('userEmail').value = '';
   document.getElementById('busId').value = '';
   document.getElementById('userMessage').value = '';
 });
+
+// Initialize
+loadRoutes();
 </script>
 </body>
 </html>

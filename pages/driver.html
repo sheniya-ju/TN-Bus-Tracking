@@ -50,17 +50,17 @@ html, body {
   background: #C2A68C; 
   color: white; 
   border: none; 
-  padding: 4px 8px; /* very small */
+  padding: 4px 8px; 
   border-radius: 5px; 
   cursor: pointer; 
   transition: 0.3s; 
-  font-size: 0.8rem; /* smaller font */
-  position: absolute; /* fixed in top-right corner */
+  font-size: 0.8rem; 
+  position: absolute; 
   top: 10px;
   right: 10px;
-  z-index: 200; /* above everything */
-  width: auto !important; /* prevent full width */
-  white-space: nowrap; /* keep text in one line */ 
+  z-index: 200; 
+  width: auto !important; 
+  white-space: nowrap; 
 }
 .logout:hover { 
   background:#E6D8C3; 
@@ -72,14 +72,14 @@ html, body {
   display:flex; 
   gap:18px; 
   padding:20px; 
-  flex:1;             /* fill available space */
-  min-height: calc(100vh - 68px); /* topbar height */
+  flex:1; 
+  min-height: calc(100vh - 68px); 
   box-sizing: border-box;
 }
 
 /* Panel */
 .panel { 
-  flex: 0 0 320px;    /* fixed width but flexible height */
+  flex: 0 0 320px; 
   background:#E6D8C3; 
   padding:16px; 
   border-radius:12px; 
@@ -87,8 +87,9 @@ html, body {
   box-shadow:0 2px 8px rgba(0,0,0,0.1); 
   color:#5D866C; 
   height:auto;
-  max-height: calc(100vh - 68px); /* prevent overflow */
+  max-height: calc(100vh - 68px); 
 }
+
 /* Map */
 .mapwrap { 
   flex:1; 
@@ -96,6 +97,16 @@ html, body {
   overflow:hidden; 
   position:relative; 
   box-shadow:0 2px 8px rgba(0,0,0,0.1); 
+  min-height:400px; 
+  display:flex;
+}
+
+/* Map full height */
+#map {
+  flex:1; 
+  width:100%; 
+  height:100%; 
+  min-height:400px;
 }
 
 /* Inputs & buttons */
@@ -120,23 +131,6 @@ button:hover {
   background:#C2A68C; 
   color:#5D866C;
 }
-/* Map wrapper */
-.mapwrap { 
-  flex:1; 
-  border-radius:12px; 
-  overflow:hidden; 
-  position:relative; 
-  box-shadow:0 2px 8px rgba(0,0,0,0.1); 
-  min-height:400px; /* ensures minimum visible map */
-  display:flex;}
-
-/* Map full height */
-#map {
-  flex:1; 
-  width:100%; 
-  height:100%; 
-  min-height:400px;
-}
 
 /* Responsive adjustments */
 @media (max-width:768px){
@@ -146,8 +140,6 @@ button:hover {
   #map { min-height:300px; }
 }
 </style>
-
-
 </head>
 <body>
 <header class="topbar">
@@ -172,7 +164,7 @@ button:hover {
 
 <script src="../assets/leaflet.js"></script>
 <script type="module">
-import { db, ref, get, set, updateDriverLocation, auth, onAuthStateChanged, keyFromEmail, signOut } from "./firebase.js";
+import { db, ref, get, set, updateDriverLocation, auth, onAuthStateChanged, keyFromEmail, signOut, update } from "./firebase.js";
 
 let map = L.map('map').setView([11.1271, 78.6569], 7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
@@ -181,8 +173,7 @@ const busInfo = document.getElementById('busInfo');
 const btnShare = document.getElementById('btnShare');
 const status = document.getElementById('status');
 let marker = null;
-let watchId = null;
-let intervalId = null; // <-- added this line
+let watchId = null; // single watchPosition
 
 // Logout
 document.getElementById('btnLogout').addEventListener('click', async () => {
@@ -194,7 +185,7 @@ document.getElementById('btnLogout').addEventListener('click', async () => {
 onAuthStateChanged(auth, async user => {
   if(!user) return window.location.href = '../index.html';
   
-  const emailKey = keyFromEmail(user.email); // use keyFromEmail helper
+  const emailKey = keyFromEmail(user.email);
 
   // Fetch assigned bus
   const snap = await get(ref(db, `assignedDrivers/${emailKey}`));
@@ -207,6 +198,7 @@ onAuthStateChanged(auth, async user => {
   const now = Date.now();
   if(busData.expiry && busData.expiry < now){
     busInfo.textContent = "Assignment expired.";
+    if(marker) map.removeLayer(marker); // remove marker
     return;
   }
 
@@ -221,57 +213,59 @@ onAuthStateChanged(auth, async user => {
       .bindPopup(`Bus: ${busData.busNo}<br>Route: ${busData.route}`);
     map.setView([loc.lat, loc.lng], 14);
   }
-btnShare.addEventListener('click', () => {
-  if (!navigator.geolocation) {
-    status.textContent = "Geolocation not supported.";
-    return;
-  }
 
-  btnShare.disabled = true;
-  status.textContent = "Sharing live location...";
+  btnShare.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      status.textContent = "Geolocation not supported.";
+      return;
+    }
 
-  // Use watchPosition for continuous updates
-  watchId = navigator.geolocation.watchPosition(
-    async (pos) => {
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
+    // prevent multiple watchers
+    if(watchId) navigator.geolocation.clearWatch(watchId);
 
-      const data = {
-        lat,
-        lng,
-        busId: busData.busNo,
-        route: busData.route,
-        time: new Date().toISOString()
-      };
+    btnShare.disabled = true;
+    status.textContent = "Sharing live location...";
 
-      // Save location to Firebase
-      await set(ref(db, `driversLocation/${emailKey}`), data).catch(err => {
-        status.textContent = "Error updating location";
-        console.error(err);
-      });
+    watchId = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
 
-      // Update or create marker
-      if (marker) {
-        marker.setLatLng([lat, lng]);
-      } else {
-        marker = L.marker([lat, lng]).addTo(map)
-          .bindPopup(`Bus: ${busData.busNo}<br>Route: ${busData.route}`)
-          .openPopup();
-      }
+        const data = {
+          lat,
+          lng,
+          busId: busData.busNo,
+          route: busData.route,
+          time: new Date().toISOString()
+        };
 
-      map.setView([lat, lng], 14);
-      status.textContent = `Location updated at ${new Date().toLocaleTimeString()}`;
-    },
-    (err) => {
-      status.textContent = "Unable to get location: " + err.message;
-    },
-    { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
-  );
-});
+        const emailKey = keyFromEmail(auth.currentUser.email);
+        await set(ref(db, `driversLocation/${emailKey}`), data);
+        await update(ref(db, `routes/${busData.route}/${busData.busNo}`), {
+          latitude: lat,
+          longitude: lng
+        });
 
+        // Map marker
+        if (marker) {
+          marker.setLatLng([lat, lng]);
+        } else {
+          marker = L.marker([lat, lng]).addTo(map)
+            .bindPopup(`Bus: ${busData.busNo}<br>Route: ${busData.route}`)
+            .openPopup();
+        }
+
+        map.setView([lat, lng], 14);
+        status.textContent = `Location updated at ${new Date().toLocaleTimeString()}`;
+      },
+      (err) => {
+        status.textContent = "Unable to get location: " + err.message;
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+    );
+  });
 
 });
 </script>
-
 </body>
 </html>
