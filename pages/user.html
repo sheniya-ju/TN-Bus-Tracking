@@ -4,278 +4,307 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>User Panel | TN Bus Tracker</title>
+
 <link rel="stylesheet" href="../assets/leaflet.css"/>
 <style>
 body { 
-  font-family: Arial, sans-serif; 
+  font-family: "Poppins", sans-serif; 
   background: #F5F5F0; 
-  margin: 0; 
-  padding: 0; 
-  box-sizing: border-box;
+  margin: 0;
+  color: #5D866C;
 }
-.header { 
+/* Topbar */
+.topbar {
   display: flex; 
   justify-content: space-between; 
   align-items: center; 
+  padding: 12px 20px; 
   background: #5D866C; 
   color: white; 
-  padding: 12px 20px; 
-  position: sticky; 
-  top: 0; 
-  z-index: 100;
-  flex-wrap: wrap; 
-  gap: 10px;
-}
-.header .logo { 
-  display: flex; 
-  align-items: center; 
-  gap: 10px; 
-  font-size: 1.3rem; 
+  font-size: 1.2rem; 
   font-weight: bold; 
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  width: 100%;
+  box-sizing: border-box;
 }
-.header .logo img { 
+
+.logo { 
+  display: flex; 
+  align-items: center;
+  gap: 10px; 
+}
+
+.logo img { 
   height: 40px; 
   border-radius: 6px; 
+  background: #F5F5F0; 
+  padding: 2px; 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
-.logout-btn { 
-   background: #C2A68C; 
+
+/* Logout Button */
+.logout-btn {
+  background: #C2A68C; 
   color: white; 
   border: none; 
-  padding: 4px 8px; 
+  padding: 6px 10px; 
   border-radius: 5px; 
   cursor: pointer; 
   transition: 0.3s; 
-  font-size: 0.8rem; 
-  position: absolute; 
-  top: 10px;
-  right: 10px;
-  z-index: 200; 
-  width: auto !important; 
-  white-space: nowrap; 
+  font-size: 0.85rem; 
+  position: relative;
+  right: 0;
+  white-space: nowrap;
 }
+
 .logout-btn:hover { 
   background: #E6D8C3; 
   color: #5D866C; 
 }
-.container { 
-  padding: 20px; 
-  display: flex; 
-  flex-direction: column; 
-  gap: 25px; 
-  max-width: 1200px; 
-  margin: 0 auto; 
+
+.container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 20px;
 }
-#map { 
-  height: 400px; 
-  width: 100%; 
-  border-radius: 12px; 
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2); 
+.left {
+  flex: 0 0 320px;
+  background: #E6D8C3;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
-.route-list { 
-  display: flex; 
-  overflow-x: auto; 
-  gap: 10px; 
+.mapwrap {
+  flex: 1;
+  min-height: 400px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+#map { height: 100%; width: 100%; min-height: 400px; }
+
+form {
+  background: #F5F5F0;
+  padding: 10px;
+  border-radius: 8px;
+}
+input, textarea, select, button {
+  width: 100%;
+  padding: 8px;
   margin-bottom: 10px;
+  border-radius: 6px;
+  border: 1px solid #C2A68C;
+  box-sizing: border-box;
+  font-family: inherit;
 }
-.route-btn { 
-  padding: 8px 14px; 
-  border: none; 
-  border-radius: 6px; 
-  background: #C2A68C; 
-  color: white; 
-  cursor: pointer; 
-  transition: 0.2s; 
-  white-space: nowrap; 
+button {
+  background: #5D866C;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
 }
-.route-btn:hover { 
-  background: #5D866C; 
+button:hover {
+  background: #C2A68C;
+  color: #5D866C;
 }
-.complaint-box { 
-  background: #E6D8C3; 
-  padding: 15px; 
-  border-radius: 12px; 
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2); 
-  display: flex; 
-  flex-direction: column; 
-  gap: 10px; 
+#statusMsg {
+  color: green;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 8px;
 }
-input, textarea, button { 
-  width: 100%; 
-  padding: 10px; 
-  border-radius: 8px; 
-  border: 1px solid #C2A68C; 
-  box-sizing: border-box; 
-  font-size: 1rem;
+.notification {
+  background: #E6D8C3;
+  color: #5D866C;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  font-weight: 500;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
-button { 
-  background: #5D866C; 
-  color: #F5F5F0; 
-  font-weight: bold; 
-  border: none; 
-  cursor: pointer; 
-  transition: 0.2s; 
-}
-button:hover { 
-  background: #C2A68C; 
-  color: #5D866C; 
+@media(max-width:768px){
+  .container { flex-direction: column; }
+  .left { width: 100%; }
 }
 </style>
 </head>
 <body>
-<div class="header">
+<div class="topbar">
   <div class="logo">
-    <img src="../image.jpeg" alt="TN Bus Tracker Logo"> User Panel
+    <img src="../image.jpeg" alt="TN Logo"> User Panel
   </div>
   <button class="logout-btn" id="btnLogout">Logout</button>
 </div>
 
 <div class="container">
-  <div class="route-list" id="routeList"></div>
-  <div id="map"></div>
+  <div class="left">
+    <h3>Track Bus by Route</h3>
+    <div id="routesList"></div>
 
-  <div class="complaint-box">
-    <h3>Raise a Complaint</h3>
-    <input type="text" id="userName" placeholder="Your Name">
-    <input type="email" id="userEmail" placeholder="Your Email">
-    <input type="text" id="busId" placeholder="Bus Number">
-    <textarea id="userMessage" placeholder="Enter your complaint"></textarea>
-    <button id="submitComplaint">Submit Complaint</button>
+    <h3>Submit Complaint</h3>
+    <div id="statusMsg"></div>
+    <form id="complaintForm">
+      <select id="busDropdown" required>
+        <option value="">Select Bus Number</option>
+      </select>
+      <textarea id="message" placeholder="Enter complaint" required></textarea>
+      <button type="submit">Submit</button>
+    </form>
+
+    <div id="notifications"></div>
+  </div>
+
+  <div class="mapwrap">
+    <div id="map"></div>
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
 <script src="../assets/leaflet.js"></script>
+
 <script type="module">
-import { db, ref, onValue, set, push, auth, onAuthStateChanged, signOut, keyFromEmail } from "./firebase.js";
+import { db, ref, get, onValue, push, auth, onAuthStateChanged, signOut } from "./firebase.js";
 
-let map = L.map('map').setView([11.1271,78.6569], 7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+const map = L.map("map").setView([11.1271, 78.6569], 7);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
 
-const markers = {};
-let userMarker = null;
-let userLocation = null;
-let watchId = null;
-let firstUpdate = true;
+const routesList = document.getElementById("routesList");
+const complaintForm = document.getElementById("complaintForm");
+const statusMsg = document.getElementById("statusMsg");
+const notifications = document.getElementById("notifications");
+const busDropdown = document.getElementById("busDropdown");
+const message = document.getElementById("message");
+const logoutBtn = document.getElementById("btnLogout");
+
+let userEmail = "";
+let userName = "";
+let markers = {};
+let userLat = null, userLng = null;
+let currentRoute = "";
 
 // Logout
-document.getElementById('btnLogout').addEventListener('click', async () => {
+logoutBtn.addEventListener("click", async () => {
   await signOut(auth);
-  window.location.href = '../index.html';
+  window.location.href = "../index.html";
 });
 
-// Auth check
-onAuthStateChanged(auth, user => {
-  if(!user) window.location.href='../index.html';
-  else trackUserLocation(user);
-});
-
-// Track user location
-function trackUserLocation(user){
-  if (!navigator.geolocation) return alert("Geolocation not supported");
-
-  if(watchId) navigator.geolocation.clearWatch(watchId);
-
-  watchId = navigator.geolocation.watchPosition(async (pos)=>{
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-    userLocation = { lat, lng };
-
-    const userKey = keyFromEmail(user.email);
-    await set(ref(db, `usersLocation/${userKey}`), { lat, lng, time: new Date().toISOString() });
-
-    if(userMarker) userMarker.setLatLng([lat,lng]);
-    else userMarker = L.marker([lat,lng]).addTo(map).bindPopup("You are here").openPopup();
-
-    if(firstUpdate){
-      map.setView([lat,lng], 12);
-      firstUpdate = false;
-    }
-
-    Object.values(markers).forEach(markerObj=>{
-      const { marker, lat: busLat, lng: busLng } = markerObj;
-      const distanceKm = haversineDistance(busLat, busLng, lat, lng);
-      const estimatedMin = Math.round((distanceKm/40)*60);
-      marker.setPopupContent(`<b>Bus:</b> ${markerObj.busNo}<br>Distance: ${distanceKm.toFixed(2)} km<br>ETA: ${estimatedMin} min`);
-    });
-  });
-}
-
-// Haversine
-function haversineDistance(lat1, lon1, lat2, lon2){
-  const R = 6371;
-  const dLat = (lat2-lat1)*Math.PI/180;
-  const dLon = (lon2-lon1)*Math.PI/180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-// Load routes dynamically
-function loadRoutes(){
-  const routeListEl = document.getElementById('routeList');
-  onValue(ref(db, 'routes'), snapshot=>{
-    const routes = snapshot.val();
-    if(!routes) return;
-    routeListEl.innerHTML = '';
-    Object.keys(routes).forEach(routeName=>{
-      const routeBtn = document.createElement('button');
-      routeBtn.className = 'route-btn';
-      routeBtn.textContent = routeName;
-      routeBtn.addEventListener('click', ()=>loadBuses(routeName));
-      routeListEl.appendChild(routeBtn);
-    });
-  });
-}
-
-// Load buses
-function loadBuses(selectedRoute){
-  Object.values(markers).forEach(m=>map.removeLayer(m.marker));
-  Object.keys(markers).forEach(k=>delete markers[k]);
-
-  onValue(ref(db, `routes/${selectedRoute}`), snapshot=>{
-    const buses = snapshot.val();
-    if(!buses) return;
-
-    Object.entries(buses).forEach(([busNo, busInfo])=>{
-      if(!busInfo.latitude || !busInfo.longitude) return;
-      const latLng = [busInfo.latitude, busInfo.longitude];
-
-      let marker = markers[busNo]?.marker;
-      if(!marker){
-        marker = L.marker(latLng).addTo(map).bindPopup(`<b>Bus:</b> ${busNo}<br><b>Route:</b> ${selectedRoute}`);
-      } else {
-        marker.setLatLng(latLng);
-      }
-
-      markers[busNo] = { marker, lat: busInfo.latitude, lng: busInfo.longitude, busNo, route: selectedRoute };
-
-      if(userLocation){
-                const distanceKm = haversineDistance(busInfo.latitude, busInfo.longitude, userLocation.lat, userLocation.lng);
-        const estimatedMin = Math.round((distanceKm/40)*60);
-        marker.setPopupContent(`<b>Bus:</b> ${busNo}<br>Distance: ${distanceKm.toFixed(2)} km<br>ETA: ${estimatedMin} min`);
+// Auth listener
+onAuthStateChanged(auth, async user => {
+  if (!user) return (window.location.href = "../index.html");
+  userEmail = user.email;
+  userName = user.displayName || user.email.split("@")[0];
+  
+  // Listen for complaint resolutions
+  onValue(ref(db, "complaints"), snapshot => {
+    const data = snapshot.val();
+    if (!data) return;
+    notifications.innerHTML = "";
+    Object.values(data).forEach(c => {
+      if (c.userEmail === userEmail && c.status === "resolved") {
+        const div = document.createElement("div");
+        div.className = "notification";
+        div.textContent = `✅ Your complaint about Bus ${c.busId} has been resolved.`;
+        notifications.appendChild(div);
       }
     });
   });
-}
+
+  // Load available routes
+  const routesSnap = await get(ref(db, "routes"));
+  const routes = routesSnap.val();
+  routesList.innerHTML = "";
+  for (const route in routes) {
+    const btn = document.createElement("button");
+    btn.textContent = route;
+    btn.onclick = () => showRouteBuses(route);
+    routesList.appendChild(btn);
+  }
+});
 
 // Complaint submission
-document.getElementById('submitComplaint').addEventListener('click', async ()=>{
-  const name = document.getElementById('userName').value.trim();
-  const email = document.getElementById('userEmail').value.trim();
-  const busId = document.getElementById('busId').value.trim();
-  const message = document.getElementById('userMessage').value.trim();
+complaintForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const selectedBus = busDropdown.value;
+  if (!selectedBus) return alert("Please select a bus number!");
 
-  if(!name || !email || !busId || !message) return alert("All fields required");
+  const complaint = {
+    busId: selectedBus,
+    message: message.value.trim(),
+    userEmail,
+    userName,
+    time: new Date().toISOString(),
+    status: "pending"
+  };
 
-  await push(ref(db, 'complaints'), { name, email, busId, message, time: new Date().toISOString() });
-
-  alert("Complaint submitted successfully");
-  document.getElementById('userName').value = '';
-  document.getElementById('userEmail').value = '';
-  document.getElementById('busId').value = '';
-  document.getElementById('userMessage').value = '';
+  await push(ref(db, "complaints"), complaint);
+  statusMsg.textContent = "✅ Complaint sent successfully!";
+  complaintForm.reset();
+  setTimeout(() => (statusMsg.textContent = ""), 3000);
 });
 
-// Initialize
-loadRoutes();
+// Show buses on map by route
+function showRouteBuses(route) {
+  currentRoute = route;
+  const routeRef = ref(db, `routes/${route}`);
+  onValue(routeRef, snapshot => {
+    const data = snapshot.val();
+    if (!data) return;
+
+    busDropdown.innerHTML = '<option value="">Select Bus Number</option>';
+    Object.entries(data).forEach(([bus, info]) => {
+      const lat = info.latitude;
+      const lng = info.longitude;
+      const key = `${route}_${bus}`;
+      const distance = userLat ? calcDistance(userLat, userLng, lat, lng).toFixed(2) : "N/A";
+      const eta = userLat ? ((distance / 40) * 60).toFixed(1) : "N/A";
+
+      const option = document.createElement("option");
+      option.value = bus;
+      option.textContent = bus;
+      busDropdown.appendChild(option);
+
+      if (markers[key]) {
+        markers[key].setLatLng([lat, lng]);
+        markers[key].setPopupContent(`Bus: ${bus}<br>Route: ${route}<br>Distance: ${distance} km<br>ETA: ${eta} min`);
+      } else {
+        markers[key] = L.marker([lat, lng]).addTo(map)
+          .bindPopup(`Bus: ${bus}<br>Route: ${route}<br>Distance: ${distance} km<br>ETA: ${eta} min`)
+          .on("click", () => {
+            busDropdown.value = bus; // Auto-select bus number
+          });
+      }
+    });
+  });
+}
+
+// User location tracking
+if (navigator.geolocation) {
+  navigator.geolocation.watchPosition(pos => {
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+  });
+}
+
+// Distance formula
+function calcDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2)**2 + 
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2)**2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
 </script>
 </body>
 </html>

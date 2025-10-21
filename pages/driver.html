@@ -14,8 +14,6 @@ html, body {
   background:#F5F5F0; 
   color:#5D866C; 
 }
-
-/* Topbar styled like Admin Panel */
 .topbar { 
   display:flex; 
   justify-content:space-between; 
@@ -30,8 +28,6 @@ html, body {
   top:0;
   z-index:100;
 }
-
-/* Logo on the left */
 .logo { 
   display:flex; 
   align-items:center; 
@@ -44,8 +40,6 @@ html, body {
   padding:2px; 
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
-
-/* Logout button small, top-right corner like Admin */
 .logout { 
   background: #C2A68C; 
   color: white; 
@@ -66,8 +60,6 @@ html, body {
   background:#E6D8C3; 
   color:#5D866C; 
 }
-
-/* Layout */
 .layout { 
   display:flex; 
   gap:18px; 
@@ -76,8 +68,6 @@ html, body {
   min-height: calc(100vh - 68px); 
   box-sizing: border-box;
 }
-
-/* Panel */
 .panel { 
   flex: 0 0 320px; 
   background:#E6D8C3; 
@@ -89,8 +79,6 @@ html, body {
   height:auto;
   max-height: calc(100vh - 68px); 
 }
-
-/* Map */
 .mapwrap { 
   flex:1; 
   border-radius:12px; 
@@ -100,16 +88,12 @@ html, body {
   min-height:400px; 
   display:flex;
 }
-
-/* Map full height */
 #map {
   flex:1; 
   width:100%; 
   height:100%; 
   min-height:400px;
 }
-
-/* Inputs & buttons */
 input, button { 
   padding:10px; 
   border-radius:8px; 
@@ -131,8 +115,25 @@ button:hover {
   background:#C2A68C; 
   color:#5D866C;
 }
-
-/* Responsive adjustments */
+/* Complaint box */
+.complaint-section {
+  margin-top: 20px;
+  background: #F5F5F0;
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.complaint-item {
+  background: #fff;
+  border-left: 4px solid #5D866C;
+  margin-bottom: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+.complaint-item b {
+  color: #5D866C;
+}
 @media (max-width:768px){
   .layout { flex-direction:column; }
   .panel { width:100%; max-height:none; margin-bottom:20px; }
@@ -155,6 +156,11 @@ button:hover {
     <p id="busInfo">Loading...</p>
     <button id="btnShare">Share Live Location</button>
     <p id="status"></p>
+
+    <div class="complaint-section">
+      <h4>Complaints for Your Bus</h4>
+      <div id="complaintsList">No complaints yet.</div>
+    </div>
   </aside>
 
   <section class="mapwrap">
@@ -164,7 +170,7 @@ button:hover {
 
 <script src="../assets/leaflet.js"></script>
 <script type="module">
-import { db, ref, get, set, updateDriverLocation, auth, onAuthStateChanged, keyFromEmail, signOut, update } from "./firebase.js";
+import { db, ref, get, set, update, auth, onAuthStateChanged, keyFromEmail, signOut, onValue } from "./firebase.js";
 
 let map = L.map('map').setView([11.1271, 78.6569], 7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
@@ -172,8 +178,12 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 
 const busInfo = document.getElementById('busInfo');
 const btnShare = document.getElementById('btnShare');
 const status = document.getElementById('status');
+const complaintsList = document.getElementById('complaintsList');
+
 let marker = null;
-let watchId = null; // single watchPosition
+let watchId = null;
+let assignedBus = null;
+let assignedRoute = null;
 
 // Logout
 document.getElementById('btnLogout').addEventListener('click', async () => {
@@ -181,13 +191,11 @@ document.getElementById('btnLogout').addEventListener('click', async () => {
   window.location.href = '../index.html';
 });
 
-// Auth check & load assignment
+// Auth check
 onAuthStateChanged(auth, async user => {
   if(!user) return window.location.href = '../index.html';
   
   const emailKey = keyFromEmail(user.email);
-
-  // Fetch assigned bus
   const snap = await get(ref(db, `assignedDrivers/${emailKey}`));
   if(!snap.exists()){
     busInfo.textContent = "No bus assigned yet.";
@@ -195,17 +203,32 @@ onAuthStateChanged(auth, async user => {
   }
 
   const busData = snap.val();
-  const now = Date.now();
-  if(busData.expiry && busData.expiry < now){
-    busInfo.textContent = "Assignment expired.";
-    if(marker) map.removeLayer(marker); // remove marker
-    return;
-  }
+  assignedBus = busData.busNo;
+  assignedRoute = busData.route;
 
-  // Display bus info
   busInfo.innerHTML = `<b>Bus:</b> ${busData.busNo}<br><b>Route:</b> ${busData.route}<br><b>Duration:</b> ${busData.durationDays || 'Permanent'}`;
 
-  // Show previous location if exists
+  // Listen for complaints related to this bus
+  onValue(ref(db, 'complaints'), snapshot => {
+    const data = snapshot.val();
+    if(!data){
+      complaintsList.innerHTML = "No complaints yet.";
+      return;
+    }
+
+    const relevant = Object.values(data).filter(c => c.busId === assignedBus);
+    if(relevant.length === 0){
+      complaintsList.innerHTML = "No complaints yet.";
+    } else {
+      complaintsList.innerHTML = relevant.map(c => `
+        <div class="complaint-item">
+          <b>Bus ${c.busId}</b><br>${c.message}
+        </div>
+      `).join('');
+    }
+  });
+
+  // Show previous location
   const locSnap = await get(ref(db, `driversLocation/${emailKey}`));
   if(locSnap.exists()){
     const loc = locSnap.val();
@@ -214,57 +237,31 @@ onAuthStateChanged(auth, async user => {
     map.setView([loc.lat, loc.lng], 14);
   }
 
+  // Share live location
   btnShare.addEventListener('click', () => {
-    if (!navigator.geolocation) {
-      status.textContent = "Geolocation not supported.";
-      return;
-    }
+    if (!navigator.geolocation) return status.textContent = "Geolocation not supported.";
 
-    // prevent multiple watchers
     if(watchId) navigator.geolocation.clearWatch(watchId);
-
     btnShare.disabled = true;
     status.textContent = "Sharing live location...";
 
     watchId = navigator.geolocation.watchPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
+      async pos => {
+        const { latitude: lat, longitude: lng } = pos.coords;
 
-        const data = {
-          lat,
-          lng,
-          busId: busData.busNo,
-          route: busData.route,
-          time: new Date().toISOString()
-        };
+        await set(ref(db, `driversLocation/${emailKey}`), { lat, lng, busId: busData.busNo, route: busData.route, time: new Date().toISOString() });
+        await update(ref(db, `routes/${busData.route}/${busData.busNo}`), { latitude: lat, longitude: lng });
 
-        const emailKey = keyFromEmail(auth.currentUser.email);
-        await set(ref(db, `driversLocation/${emailKey}`), data);
-        await update(ref(db, `routes/${busData.route}/${busData.busNo}`), {
-          latitude: lat,
-          longitude: lng
-        });
-
-        // Map marker
-        if (marker) {
-          marker.setLatLng([lat, lng]);
-        } else {
-          marker = L.marker([lat, lng]).addTo(map)
-            .bindPopup(`Bus: ${busData.busNo}<br>Route: ${busData.route}`)
-            .openPopup();
-        }
+        if (marker) marker.setLatLng([lat, lng]);
+        else marker = L.marker([lat, lng]).addTo(map).bindPopup(`Bus: ${busData.busNo}<br>Route: ${busData.route}`).openPopup();
 
         map.setView([lat, lng], 14);
         status.textContent = `Location updated at ${new Date().toLocaleTimeString()}`;
       },
-      (err) => {
-        status.textContent = "Unable to get location: " + err.message;
-      },
+      err => status.textContent = "Unable to get location: " + err.message,
       { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     );
   });
-
 });
 </script>
 </body>
