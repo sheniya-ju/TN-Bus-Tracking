@@ -128,9 +128,26 @@ button:hover {
   font-weight: 500;
   box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
-@media(max-width:768px){
+
+/* Responsive design */
+@media(max-width:1200px){
   .container { flex-direction: column; }
-  .left { width: 100%; }
+  .left, .mapwrap { width: 100%; }
+  #map { min-height: 300px; }
+}
+@media(max-width:768px){
+  .topbar { flex-direction: column; gap: 10px; text-align: center; font-size: 1rem; padding: 10px; }
+  .logout-btn { align-self: center; }
+  .container { flex-direction: column; padding: 15px; }
+  .left, .mapwrap { width: 100%; }
+  #map { min-height: 250px; }
+}
+@media(max-width:480px){
+  body { font-size: 14px; }
+  .topbar { font-size: 0.95rem; padding: 8px; }
+  .logout-btn { font-size: 0.8rem; padding: 5px 8px; }
+  .left { padding: 12px; }
+  #map { min-height: 200px; }
 }
 </style>
 </head>
@@ -158,6 +175,10 @@ button:hover {
     </form>
 
     <div id="notifications"></div>
+
+    <!-- Previous Complaints Section -->
+    <h3>Previous Complaints</h3>
+    <div id="previousComplaints"></div>
   </div>
 
   <div class="mapwrap">
@@ -180,14 +201,17 @@ const routesList = document.getElementById("routesList");
 const complaintForm = document.getElementById("complaintForm");
 const statusMsg = document.getElementById("statusMsg");
 const notifications = document.getElementById("notifications");
+const previousComplaintsDiv = document.getElementById("previousComplaints");
 const busDropdown = document.getElementById("busDropdown");
 const message = document.getElementById("message");
 const logoutBtn = document.getElementById("btnLogout");
 
 let userEmail = "";
 let userName = "";
-let markers = {};
+let markers = {};         
+let userMarker = null;    
 let userLat = null, userLng = null;
+let firstUserFix = true;
 let currentRoute = "";
 
 // Logout
@@ -202,17 +226,24 @@ onAuthStateChanged(auth, async user => {
   userEmail = user.email;
   userName = user.displayName || user.email.split("@")[0];
   
-  // Listen for complaint resolutions
+    // Real-time complaint notifications
   onValue(ref(db, "complaints"), snapshot => {
     const data = snapshot.val();
     if (!data) return;
     notifications.innerHTML = "";
-    Object.values(data).forEach(c => {
-      if (c.userEmail === userEmail && c.status === "resolved") {
-        const div = document.createElement("div");
-        div.className = "notification";
-        div.textContent = `✅ Your complaint about Bus ${c.busId} has been resolved.`;
-        notifications.appendChild(div);
+    Object.entries(data).forEach(([key, c]) => {
+      if (c.userEmail === userEmail) {
+        if (c.status === "resolved" || c.resolved) {
+          const div = document.createElement("div");
+          div.className = "notification";
+          div.textContent = `✅ Your complaint about Bus ${c.busId} has been resolved.`;
+          notifications.appendChild(div);
+        } else {
+          const div = document.createElement("div");
+          div.className = "notification";
+          div.textContent = `⚠️ Your complaint about Bus ${c.busId} is pending.`;
+          notifications.appendChild(div);
+        }
       }
     });
   });
@@ -256,30 +287,50 @@ function showRouteBuses(route) {
   const routeRef = ref(db, `routes/${route}`);
   onValue(routeRef, snapshot => {
     const data = snapshot.val();
-    if (!data) return;
+    if (!data) {
+      Object.values(markers).forEach(m => map.removeLayer(m.marker));
+      markers = {};
+      busDropdown.innerHTML = '<option value="">Select Bus Number</option>';
+      return;
+    }
 
     busDropdown.innerHTML = '<option value="">Select Bus Number</option>';
+
+    const newKeys = new Set(Object.keys(data).map(b => `${route}_${b}`));
+    Object.keys(markers).forEach(k => {
+      if (!newKeys.has(k)) {
+        map.removeLayer(markers[k].marker);
+        delete markers[k];
+      }
+    });
+
     Object.entries(data).forEach(([bus, info]) => {
-      const lat = info.latitude;
-      const lng = info.longitude;
+      const lat = parseFloat(info.latitude);
+      const lng = parseFloat(info.longitude);
       const key = `${route}_${bus}`;
-      const distance = userLat ? calcDistance(userLat, userLng, lat, lng).toFixed(2) : "N/A";
-      const eta = userLat ? ((distance / 40) * 60).toFixed(1) : "N/A";
+
+      const distanceKm = (userLat !== null) ? calcDistance(userLat, userLng, lat, lng) : null;
+      const distanceText = distanceKm !== null ? `${distanceKm.toFixed(2)} km` : "N/A";
+      const etaText = distanceKm !== null ? `${Math.round((distanceKm / 40) * 60)} min` : "N/A";
 
       const option = document.createElement("option");
       option.value = bus;
       option.textContent = bus;
       busDropdown.appendChild(option);
 
+      const popupContent = `<b>Bus:</b> ${bus}<br><b>Route:</b> ${route}<br><b>Distance:</b> ${distanceText}<br><b>ETA:</b> ${etaText}`;
+
       if (markers[key]) {
-        markers[key].setLatLng([lat, lng]);
-        markers[key].setPopupContent(`Bus: ${bus}<br>Route: ${route}<br>Distance: ${distance} km<br>ETA: ${eta} min`);
+        markers[key].lat = lat;
+        markers[key].lng = lng;
+        markers[key].marker.setLatLng([lat, lng]);
+        markers[key].marker.setPopupContent(popupContent);
       } else {
-        markers[key] = L.marker([lat, lng]).addTo(map)
-          .bindPopup(`Bus: ${bus}<br>Route: ${route}<br>Distance: ${distance} km<br>ETA: ${eta} min`)
-          .on("click", () => {
-            busDropdown.value = bus; // Auto-select bus number
-          });
+        const marker = L.marker([lat, lng]).addTo(map)
+          .bindPopup(popupContent)
+          .on("click", () => { busDropdown.value = bus; });
+
+        markers[key] = { marker, lat, lng, bus, route };
       }
     });
   });
@@ -288,20 +339,59 @@ function showRouteBuses(route) {
 // User location tracking
 if (navigator.geolocation) {
   navigator.geolocation.watchPosition(pos => {
-    userLat = pos.coords.latitude;
-    userLng = pos.coords.longitude;
+    userLat = parseFloat(pos.coords.latitude);
+    userLng = parseFloat(pos.coords.longitude);
+
+    if (userMarker) {
+      userMarker.setLatLng([userLat, userLng]);
+    } else {
+      userMarker = L.marker([userLat, userLng], { title: "You are here" }).addTo(map).bindPopup("You are here");
+    }
+
+    if (firstUserFix) {
+      map.setView([userLat, userLng], 12);
+      firstUserFix = false;
+      if (userMarker && userMarker.getPopup()) {
+        userMarker.openPopup();
+        setTimeout(()=> userMarker.closePopup(), 1500);
+      }
+    }
+
+    Object.values(markers).forEach(mObj => {
+      const lat = parseFloat(mObj.lat);
+      const lng = parseFloat(mObj.lng);
+      if (!isFinite(lat) || !isFinite(lng)) return;
+
+      const distanceKm = calcDistance(userLat, userLng, lat, lng);
+      const distanceText = `${distanceKm.toFixed(2)} km`;
+      const etaText = `${Math.round((distanceKm / 40) * 60)} min`;
+
+      const newPopup = `<b>Bus:</b> ${mObj.bus}<br><b>Route:</b> ${mObj.route}<br><b>Distance:</b> ${distanceText}<br><b>ETA:</b> ${etaText}`;
+      mObj.marker.setPopupContent(newPopup);
+
+      if (mObj.marker.isPopupOpen && mObj.marker.getPopup()) {
+        mObj.marker.openPopup();
+      }
+    });
+  }, (err) => {
+    console.warn("Geolocation error:", err.message);
+  }, {
+    enableHighAccuracy: true,
+    maximumAge: 5000,
+    timeout: 10000
   });
 }
 
-// Distance formula
+// Haversine distance in kilometers
 function calcDistance(lat1, lon1, lat2, lon2) {
+  lat1 = Number(lat1); lon1 = Number(lon1); lat2 = Number(lat2); lon2 = Number(lon2);
+  if (![lat1,lon1,lat2,lon2].every(isFinite)) return 0;
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2)**2 + 
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon/2)**2;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c;
 }
