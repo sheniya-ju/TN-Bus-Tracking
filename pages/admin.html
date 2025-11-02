@@ -15,7 +15,8 @@ body {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  overflow: hidden; /* ✅ Prevent full-page scrolling */
+   overflow-x: hidden;   /* ✅ prevent horizontal scroll only */
+  overflow-y: auto;
 }
 
 /* 🌟 Topbar */
@@ -80,7 +81,7 @@ body {
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
-  overflow: hidden; /* ✅ Prevent container scroll */
+  overflow-y: visible; /* ✅ Prevent container scroll */
 }
 
 /* 🧾 Assign Box */
