@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
  <style>
 /* --- Background --- */
+/* --- Body --- */
 body {
   font-family: "Poppins", sans-serif;
   background: radial-gradient(circle at top, #0a2e14, #021208);
@@ -15,6 +16,18 @@ body {
   justify-content: center;
   align-items: center;
   height: 100vh;
+  overflow: hidden;
+}
+
+/* --- Scrollable Container Wrapper --- */
+.wrapper {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
 }
 
 /* --- Container --- */
@@ -25,6 +38,7 @@ body {
   box-shadow: 0 0 25px rgba(0, 255, 100, 0.15);
   padding: 40px 30px;
   width: 380px;
+  max-width: 95%;
   text-align: center;
   backdrop-filter: blur(10px);
 }
@@ -118,10 +132,17 @@ a:hover {
 }
 
 /* --- Responsive --- */
+@media (max-height: 700px) {
+  .wrapper {
+    align-items: flex-start;
+    padding-top: 30px;
+  }
+}
+
 @media (max-width: 480px) {
   .container {
     width: 90%;
-    padding: 30px 20px;
+    padding: 25px 20px;
   }
 
   .logo {
@@ -139,25 +160,33 @@ a:hover {
   }
 }
 
+
 </style>
 
 </head>
 <body>
 
+ <div class="wrapper">
   <div class="container">
     <img src="../image.jpg" class="logo" alt="TN Bus Tracker Logo">
     <h2>Signup</h2>
+
     <input type="text" id="name" placeholder="Full Name" required>
     <input type="email" id="email" placeholder="Email" required>
     <input type="password" id="password" placeholder="Password" required>
-   <center><select id="role">
-    <option value="user">User</option>
-    <option value="driver">Driver</option>
-    <option value="admin">Admin</option>
-  </select></center>
+
+    <select id="role" required>
+      <option value="">Select Role</option>
+      <option value="user">User</option>
+      <option value="driver">Driver</option>
+      <option value="admin">Admin</option>
+    </select>
+
     <button id="signupBtn">Signup</button>
     <p id="msg"></p>
   </div>
+</div>
+
 
   <script type="module">
     import { db, ref, set, auth, createUserWithEmailAndPassword, keyFromEmail } from "./firebase.js";

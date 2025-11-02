@@ -13,6 +13,7 @@ body {
   background: radial-gradient(circle at top, #0a2e14, #021208); 
   margin: 0;
   color: #d9fcd6;
+  overflow-x: hidden;
 }
 
 /* --- Topbar --- */
@@ -54,10 +55,10 @@ body {
   background: linear-gradient(90deg, #00ff80, #00cc66); 
   color: #021808; 
   border: none; 
-  padding: 8px 14px; 
-  border-radius: 8px; 
+  padding: 10px 16px; 
+  border-radius: 10px; 
   cursor: pointer; 
-  font-size: 0.9rem; 
+  font-size: 1rem; 
   font-weight: 600; 
   transition: 0.3s; 
   box-shadow: 0 0 10px #00ff80;
@@ -68,18 +69,19 @@ body {
   transform: scale(1.05);
 }
 
-/* --- Container Layout --- */
+/* --- Main Container --- */
 .container {
   display: flex;
   flex-wrap: nowrap;
   gap: 20px;
   padding: 20px;
   align-items: stretch;
-  height: calc(100vh - 80px); /* fill screen minus topbar */
+  height: calc(100vh - 80px);
   box-sizing: border-box;
+  overflow: hidden;
 }
 
-/* --- Left panel (smaller) --- */
+/* --- Left Panel --- */
 .left {
   width: 320px;
   background: rgba(0, 40, 20, 0.85);
@@ -92,12 +94,13 @@ body {
   height: 100%;
 }
 
-/* --- Map area (large, fills remaining space) --- */
+/* --- Map Wrap --- */
 .mapwrap {
   flex: 1;
   border-radius: 15px;
   overflow: hidden;
-  box-shadow: 0 0 25px rgba(0, 255, 100, 0.1);
+  position: relative;
+  box-shadow: 0 0 25px rgba(0, 255, 100, 0.15);
   border: 1px solid rgba(0, 255, 100, 0.25);
   height: 100%;
 }
@@ -107,22 +110,22 @@ body {
   border-radius: 15px;
 }
 
-/* --- Form --- */
+/* --- Form Styling --- */
 form {
   background: rgba(0, 25, 10, 0.5);
-  padding: 12px;
+  padding: 14px;
   border-radius: 10px;
 }
 input, textarea, select, button {
   width: 100%;
-  padding: 10px;
-  margin-bottom: 10px;
-  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: 10px;
   border: 1px solid rgba(0, 255, 100, 0.3);
   background: rgba(0, 30, 15, 0.6);
   color: #d9fcd6;
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 1rem;
   outline: none;
   transition: all 0.2s ease-in-out;
 }
@@ -184,25 +187,125 @@ h3 {
   border-radius: 6px;
 }
 
-/* --- Responsive --- */
+/* --- Responsive Adjustments --- */
 @media(max-width:1200px){
-  .container { flex-direction: column; }
-  .left, .mapwrap { width: 100%; height: auto; }
-  #map { min-height: 400px; }
+  .container { 
+    flex-direction: column; 
+    height: auto;
+  }
+  .left, .mapwrap { 
+    width: 100%; 
+    height: auto; 
+  }
+  #map { 
+    min-height: 420px; 
+  }
 }
+
 @media(max-width:768px){
-  .topbar { flex-direction: column; gap: 10px; text-align: center; font-size: 1rem; padding: 10px; }
-  .logout-btn { align-self: center; }
-  .container { flex-direction: column; padding: 15px; }
-  .left, .mapwrap { width: 100%; }
-  #map { min-height: 300px; }
+  .topbar { 
+    flex-direction: column; 
+    gap: 10px; 
+    text-align: center; 
+    font-size: 1rem; 
+    padding: 10px; 
+  }
+  .logout-btn { 
+    align-self: center; 
+  }
+  .container { 
+    flex-direction: column; 
+    padding: 15px; 
+  }
+  .left, .mapwrap { 
+    width: 100%; 
+    height: auto; 
+  }
+  #map { 
+    min-height: 350px; 
+  }
+  input, select, button { 
+    padding: 12px; 
+    font-size: 1rem; 
+  }
 }
-@media(max-width:480px){
-  body { font-size: 14px; }
-  .topbar { font-size: 0.95rem; padding: 8px; }
-  .logout-btn { font-size: 0.8rem; padding: 5px 8px; }
-  .left { padding: 12px; }
-  #map { min-height: 250px; }
+
+@media(max-width:768px){
+  .topbar { 
+    flex-direction: column; 
+    gap: 10px; 
+    text-align: center; 
+    font-size: 1rem; 
+    padding: 10px; 
+  }
+
+  .logout-btn { 
+    align-self: center; 
+  }
+
+  /* Stack content vertically (map comes after left panel) */
+  .container { 
+    flex-direction: column; 
+    padding: 15px; 
+    height: auto;
+  }
+
+  .left { 
+    width: 100%; 
+    height: auto; 
+    order: 1; /* 👈 Left panel first */
+  }
+
+  .mapwrap { 
+    width: 100%; 
+    height: auto; 
+    order: 2; /* 👈 Map below the left panel */
+    margin-top: 15px;
+  }
+
+  #map { 
+    min-height: 350px; 
+  }
+
+  input, select, button { 
+    padding: 12px; 
+    font-size: 1rem; 
+  }
+}
+/* 🌿 Center Alignment Fix for Left Panel */
+.left {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* centers inner content */
+  text-align: center;  /* aligns text and buttons centrally */
+  gap: 16px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+/* Make internal elements fit neatly in center */
+.left h3,
+.left form,
+.left .notification,
+.left button,
+.left select,
+.left input {
+  width: 100%;
+  max-width: 280px; /* keeps consistent center width */
+  margin: 0 auto;
+}
+
+/* Responsive fine-tune for mobile */
+@media(max-width:768px){
+  .left {
+    align-items: center;
+    text-align: center;
+  }
+  .left h3,
+  .left form,
+  .left .notification {
+    max-width: 100%;
+  }
 }
 
 
