@@ -6,77 +6,124 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <style>
 body {
-  font-family: Arial, sans-serif;
-  background: #F5F5F0;
+  font-family: "Poppins", sans-serif;
+  background: radial-gradient(circle at top, #0a2e14, #031108);
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
   margin: 0;
+  color: #d9fcd6;
 }
+
+/* Card container with glassmorphism effect */
 .card {
-  background: #E6D8C3;
-  padding: 25px;
-  border-radius: 12px;
+  background: rgba(18, 40, 22, 0.85);
+  padding: 30px;
+  border-radius: 18px;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 0 25px rgba(0, 255, 100, 0.25);
   text-align: center;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 255, 100, 0.2);
 }
+
+/* Logo styling */
 .logo {
-      width: 350px;
-      height: 100px;
-      object-fit: cover;
-      border-radius: 12px;
-      margin-bottom: 20px;
-    }
-.card img.logo {
-  width: 100px;
+  width: 320px;
+  height: auto;
   margin-bottom: 15px;
-  border-radius: 8px;
+  filter: drop-shadow(0 0 15px #00ff80);
 }
+
+/* Headings */
+h2 {
+  color: #9effa4;
+  text-shadow: 0 0 8px #00ff80;
+  margin-bottom: 15px;
+}
+
+/* Inputs and dropdown */
 input, select, button {
   width: 100%;
   padding: 12px;
   margin: 8px 0;
-  border-radius: 8px;
-  border: 1px solid #C2A68C;
-  box-sizing:border-box;
+  border-radius: 10px;
+  border: 1px solid #00b36b;
+  background: rgba(0, 40, 20, 0.6);
+  color: #d9fcd6;
+  font-size: 1rem;
+  outline: none;
+  transition: all 0.2s ease-in-out;
 }
+
+input::placeholder {
+  color: #9cdba4;
+}
+
+input:focus, select:focus {
+  border-color: #00ff80;
+  box-shadow: 0 0 10px #00ff80;
+}
+
+/* Button styles */
 button {
-  background: #5D866C;
-  color: #F5F5F0;
+  background: linear-gradient(90deg, #00ff80, #00cc66);
+  color: #021808;
   font-weight: bold;
-  cursor:pointer;
-  border:none;
-  transition:0.2s;
+  border: none;
+  cursor: pointer;
+  transition: 0.3s ease;
+  box-shadow: 0 0 12px #00ff80;
 }
+
 button:hover {
-  background: #C2A68C;
+  background: linear-gradient(90deg, #00cc66, #00ff99);
+  box-shadow: 0 0 20px #00ff99;
+  transform: scale(1.03);
 }
+
+/* Error message */
 .error {
-  color: red;
+  color: #ff6060;
   font-size: 0.9rem;
   text-align: center;
+  margin-top: 8px;
 }
+
+/* Links */
 a {
-  color: #5D866C;
+  color: #00ff99;
   text-decoration: none;
+  font-weight: 500;
 }
-a:hover { text-decoration: underline; }
+a:hover {
+  text-decoration: underline;
+  text-shadow: 0 0 6px #00ff80;
+}
+
+/* Glow animation (optional) */
+@keyframes glow {
+  0% { box-shadow: 0 0 5px #00ff80; }
+  50% { box-shadow: 0 0 20px #00ff80; }
+  100% { box-shadow: 0 0 5px #00ff80; }
+}
 </style>
 </head>
 <body>
 <div class="card">
-  <img src="../image.jpeg" class="logo" alt="TN Bus Tracker Logo">
+  <img src="../image.jpg" class="logo" alt="TN Bus Tracker Logo">
   <h2>Login</h2>
   <input id="email" type="email" placeholder="Email"/>
   <input id="password" type="password" placeholder="Password"/>
-  <center><select id="role">
-    <option value="user">User</option>
-    <option value="driver">Driver</option>
-    <option value="admin">Admin</option>
-  </select></center>
+  <center>
+    <select id="role">
+      <option value="user">User</option>
+      <option value="driver">Driver</option>
+      <option value="admin">Admin</option>
+    </select>
+  </center>
   <button id="btnLogin">Login</button>
   <p class="error" id="loginError"></p>
   <p>Don't have account? <a href="signup.html">Signup</a></p>
@@ -100,11 +147,9 @@ btnLogin.addEventListener('click', async () => {
   }
 
   try {
-    // Sign in with Firebase Authentication
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    // Get user data from Realtime Database
     const snap = await get(ref(db, `users/${keyFromEmail(email)}`));
     if(!snap.exists()){ 
       loginError.textContent = 'User not found'; 
@@ -112,14 +157,11 @@ btnLogin.addEventListener('click', async () => {
     }
 
     const userData = snap.val();
-
-    // Check role
     if(userData.role !== role){ 
       loginError.textContent = 'Role mismatch'; 
       return; 
     }
 
-    // Redirect based on role
     if(role === 'driver') window.location.href = 'driver.html';
     else if(role === 'admin') window.location.href = 'admin.html';
     else window.location.href = 'user.html';

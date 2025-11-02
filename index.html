@@ -8,80 +8,109 @@
     /* General reset */
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    body {
-      font-family: 'Inter', Arial, sans-serif;
-      background: linear-gradient(to bottom right, #F5F5F0, #E6D8C3);
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
+body {
+  font-family: 'Poppins', Arial, sans-serif;
+  background: radial-gradient(circle at top left, #0a2e14, #021208);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
+}
 
-    .container {
-      background: #C2A68C;
-      border-radius: 16px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-      max-width: 450px;
-      width: 90%;
-      text-align: center;
-      padding: 40px 20px;
-    }
+/* --- Main Container --- */
+.container {
+  background: rgba(0, 40, 20, 0.85);
+  border-radius: 20px;
+  box-shadow: 0 0 25px rgba(0, 255, 100, 0.15);
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  padding: 40px 30px;
+  border: 1px solid rgba(0, 255, 100, 0.25);
+  backdrop-filter: blur(10px);
+  color: #d9fcd6;
+}
 
-    .logo {
-      width: 150px;
-      height: 150px;
-      object-fit: cover;
-      border-radius: 12px;
-      margin-bottom: 20px;
-    }
+/* --- Logo --- */
+.logo {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 0 25px rgba(0, 255, 100, 0.3);
+  border: 2px solid rgba(0, 255, 100, 0.5);
+  filter: drop-shadow(0 0 10px #00ff80);
+}
 
-    h1 {
-      color: #5D866C;
-      font-size: 1.8rem;
-      margin-bottom: 10px;
-    }
+/* --- Heading --- */
+h1 {
+  color: #00ff80;
+  font-size: 1.9rem;
+  margin-bottom: 10px;
+  text-shadow: 0 0 10px #00ff80;
+}
 
-    p {
-      color: #F5F5F0;
-      margin-bottom: 30px;
-      font-weight: 500;
-    }
+/* --- Subtitle --- */
+p {
+  color: #a8f5b8;
+  margin-bottom: 30px;
+  font-weight: 500;
+  font-size: 1rem;
+}
 
-    .btn {
-      display: block;
-      width: 100%;
-      padding: 12px;
-      margin: 10px 0;
-      border-radius: 8px;
-      border: none;
-      background-color: #5D866C;
-      color: #F5F5F0;
-      font-weight: bold;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: background 0.3s;
-    }
+/* --- Button --- */
+.btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin: 12px 0;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(90deg, #00ff80, #00cc66);
+  color: #021808;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: 0.3s ease-in-out;
+  box-shadow: 0 0 15px rgba(0, 255, 100, 0.3);
+}
+.btn:hover {
+  background: linear-gradient(90deg, #00cc66, #00ff99);
+  box-shadow: 0 0 25px #00ff99;
+  transform: scale(1.03);
+}
 
-    .btn:hover {
-      background-color: #C2A68C;
-      color: #5D866C;
-    }
+/* --- Link --- */
+a {
+  text-decoration: none;
+  color: #00ff99;
+  font-weight: 500;
+  transition: 0.3s;
+}
+a:hover {
+  text-shadow: 0 0 10px #00ff80;
+  text-decoration: underline;
+}
 
-    a {
-      text-decoration: none;
-      color: #5D866C;
-      font-weight: 500;
-    }
+/* --- Small Glow Animation --- */
+@keyframes glow {
+  0% { box-shadow: 0 0 10px #00ff80; }
+  50% { box-shadow: 0 0 25px #00ff80; }
+  100% { box-shadow: 0 0 10px #00ff80; }
+}
 
-    a:hover {
-      text-decoration: underline;
-    }
+.logo {
+  animation: glow 3s infinite ease-in-out;
+}
+
   </style>
 </head>
 <body>
 
   <div class="container">
-    <img src="image.jpeg" alt="TN Govt Transport Logo" class="logo">
+    <img src="image.jpg" alt="TN Govt Transport Logo" class="logo">
     
     <h1>Welcome to TN Bus Tracking</h1>
     <p>Track buses, manage accounts, and access transport services.</p>
