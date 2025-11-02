@@ -179,7 +179,7 @@ a:hover {
       <option value="">Select Role</option>
       <option value="user">User</option>
       <option value="driver">Driver</option>
-      <option value="admin">Admin</option>
+      
     </select>
 
     <button id="signupBtn">Signup</button>
@@ -189,47 +189,55 @@ a:hover {
 
 
   <script type="module">
-    import { db, ref, set, auth, createUserWithEmailAndPassword, keyFromEmail } from "./firebase.js";
+  import { db, ref, set, auth, createUserWithEmailAndPassword, sendEmailVerification, keyFromEmail } from "./firebase.js";
 
-    const signupBtn = document.getElementById('signupBtn');
-    const msg = document.getElementById('msg');
+  const signupBtn = document.getElementById('signupBtn');
+  const msg = document.getElementById('msg');
 
-    signupBtn.addEventListener('click', async () => {
-      const name = document.getElementById('name').value.trim();
-      const email = document.getElementById('email').value.trim().toLowerCase();
-      const password = document.getElementById('password').value;
-      const role = document.getElementById('role').value;
+  signupBtn.addEventListener('click', async () => {
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim().toLowerCase();
+    const password = document.getElementById('password').value;
+    const role = document.getElementById('role').value;
 
-      if (!name || !email || !password) {
-        msg.textContent = "All fields are required!";
-        msg.className = "error";
-        return;
-      }
+    if (!name || !email || !password) {
+      msg.textContent = "All fields are required!";
+      msg.className = "error";
+      return;
+    }
 
-      try {
-        // Create Firebase Auth user
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    try {
+  // Create Firebase Auth user
+  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
-        // Save additional info in Realtime Database
-        const userKey = keyFromEmail(email);
-        await set(ref(db, `users/${userKey}`), {
-          name,
-          email,
-          role,
-          createdAt: new Date().toISOString()
-        });
+  // ✅ Send email verification with logging
+  await sendEmailVerification(userCredential.user)
+    .then(() => console.log("Verification email sent"))
+    .catch(err => console.log("Email error:", err));
 
-        msg.textContent = "Signup successful! Redirecting...";
-        msg.className = "success";
+  // Save additional info in Realtime Database
+  const userKey = keyFromEmail(email);
+  await set(ref(db, `users/${userKey}`), {
+    name,
+    email,
+    role,
+    createdAt: new Date().toISOString()
+  });
 
-        setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+  msg.textContent = "Signup successful! Verification email sent. Check your inbox.";
+  msg.className = "success";
 
-      } catch (err) {
-        msg.textContent = err.message;
-        msg.className = "error";
-      }
-    });
-  </script>
+  // Redirect after 3 seconds to login page
+  setTimeout(() => { window.location.href = 'login.html'; }, 3000);
+
+} catch (err) {
+  msg.textContent = err.message;
+  msg.className = "error";
+}
+
+  });
+</script>
+
 
 </body>
 </html>

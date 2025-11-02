@@ -4,7 +4,7 @@ import {
   getDatabase, ref, set, push, get, onValue, remove, update 
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 import { 
-  getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged 
+  getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendEmailVerification
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
 // ===== Firebase Config =====
@@ -30,15 +30,26 @@ function keyFromEmail(email){
 // ===== Login & Signup =====
 async function loginUser(email, password){
   const userCredential = await signInWithEmailAndPassword(auth, email, password);
+
+  // ✅ Check if email is verified
+  if(!userCredential.user.emailVerified){
+    throw new Error("Please verify your email before logging in.");
+  }
+
   return userCredential.user;
 }
 
 async function signupUser(name, email, password, role){
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+
+  // ✅ Send verification email
+  await sendEmailVerification(userCredential.user);
+
   const userKey = keyFromEmail(email);
   await set(ref(db, `users/${userKey}`), {
     name, email, role, createdAt: new Date().toISOString()
   });
+
   return userCredential.user;
 }
 
@@ -151,5 +162,7 @@ export {
   db, auth, ref, set, get, onValue, push, remove, update,
   signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut,
   loginUser, signupUser, logoutUser, assignDriver, updateDriverLocation, submitComplaint,
-  keyFromEmail, updateUserLocation, updateBusRouteCoordinates
+  keyFromEmail, updateUserLocation, updateBusRouteCoordinates,
+  sendEmailVerification   // ✅ add this line
 };
+
